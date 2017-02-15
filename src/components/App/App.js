@@ -57,8 +57,8 @@ class App extends Component {
   handleMouseDown (e) {
     if (e.button === 0) {
       const { viewX, viewY } = this.state
-      const x = e.x - viewX
-      const y = e.y - viewY
+      const x = e.pageX - viewX
+      const y = e.pageY - viewY
       socket.emit('mousedown', { x, y })
       if (this.state.action === 'add-enemy') {
         socket.emit('add-enemy')
@@ -66,8 +66,8 @@ class App extends Component {
     }
 
     if (e.button === 1) {
-      this.originalX = e.x
-      this.originalY = e.y
+      this.originalX = e.pageX
+      this.originalY = e.pageY
       this.originalViewX = this.state.viewX
       this.originalViewY = this.state.viewY
       this.setState({ panning: true })
@@ -76,8 +76,8 @@ class App extends Component {
 
   handleMouseUp (e) {
     const { viewX, viewY } = this.state
-    const x = e.x - viewX
-    const y = e.y - viewY
+    const x = e.pageX - viewX
+    const y = e.pageY - viewY
     socket.emit('mouseup', { x, y })
     this.setState({ panning: false })
   }
@@ -85,12 +85,12 @@ class App extends Component {
   handleMouseMove (e) {
     const { viewX, viewY } = this.state
     if (this.state.panning) {
-      const newViewX = this.originalViewX + e.x - this.originalX
-      const newViewY = this.originalViewY + e.y - this.originalY
+      const newViewX = this.originalViewX + e.pageX - this.originalX
+      const newViewY = this.originalViewY + e.pageY - this.originalY
       this.setState({ viewX: newViewX, viewY: newViewY })
     } else {
-      const x = e.x - viewX
-      const y = e.y - viewY
+      const x = e.pageX - viewX
+      const y = e.pageY - viewY
       socket.emit('mousemove', { x, y })
     }
   }
