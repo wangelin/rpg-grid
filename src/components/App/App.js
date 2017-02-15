@@ -3,6 +3,8 @@ import './App.css'
 import io from 'socket.io-client'
 const socket = io('http://83.216.107.14:3001')
 
+const commands = ['add-player', 'add-enemy']
+
 class App extends Component {
   constructor (props) {
     super(props)
@@ -13,11 +15,15 @@ class App extends Component {
       viewX: 0,
       viewY: 0,
       zoom: 1,
-      panning: false
+      panning: false,
+      prompt: false,
+      action: '',
+      promptText: ''
     }
 
     this.handleUpdate = this.handleUpdate.bind(this)
     this.handleInit = this.handleInit.bind(this)
+    this.handlePrompt = this.handlePrompt.bind(this)
     this.handleMouseDown = this.handleMouseDown.bind(this)
     this.handleMouseUp = this.handleMouseUp.bind(this)
     this.handleMouseMove = this.handleMouseMove.bind(this)
@@ -52,6 +58,10 @@ class App extends Component {
       this.centerView()
       this.draw()
     })
+  }
+
+  handlePrompt (e) {
+    this.setState({ promptText: e.target.value })
   }
 
   handleMouseDown (e) {
@@ -102,19 +112,39 @@ class App extends Component {
   }
 
   handleKeyDown (e) {
-    const { action } = this.state
+    const { action, prompt, promptText } = this.state
+
+    if (prompt) {
+      switch (e.keyCode) {
+        case 13:
+          const newAction = commands.indexOf(promptText) !== -1 ? promptText : ''
+          this.setState({ prompt: false, action: action === newAction ? '' : newAction })
+          break;
+        case 27:
+          this.setState({ prompt: false })
+          break;
+      }
+      return
+    }
     let newAction
     switch (e.key) {
+      case 'p':
+        this.setState({ prompt: true })
+        break;
       case 'h':
-        const height = prompt('Enter height')
+        const height = window.prompt('Enter height')
         socket.emit('data', { height })
         break;
       case 'w':
-        const width = prompt('Enter width')
+        const width = window.prompt('Enter width')
         socket.emit('data', { width })
         break;
-      case 'p':
-        newAction = 'add-player'
+      case 'd':
+        newAction = 'damage'
+        this.setState({ action: action === newAction ? '' : newAction })
+        break;
+      case 'c':
+        newAction = 'add-character'
         this.setState({ action: action === newAction ? '' : newAction })
         break;
       case 'e':
@@ -122,6 +152,7 @@ class App extends Component {
         this.setState({ action: action === newAction ? '' : newAction })
         break;
     }
+    e.preventDefault()
   }
 
   draw () {
@@ -242,9 +273,23 @@ class App extends Component {
   }
 
   render() {
+    const { prompt, promptText } = this.state
     return (
       <div className='app'>
         <canvas ref={canvas => { this.canvas = canvas }}></canvas>
+        {prompt && (
+          <div className='prompt'>
+            <input type='text' placeholder='Type a command' autoFocus={true}
+              className={commands.indexOf(promptText) !== -1 ? 'ok' : ''}
+              onChange={this.handlePrompt}
+              value={promptText} />
+            {['h', 'help'].indexOf(promptText) !== -1 && (
+              <div className='help'>Available Commands:
+                <ul>
+                  {commands.map(command => <li key={command}>{command}</li>)}
+                </ul>
+              </div>)}
+          </div>)}
       </div>
     )
   }

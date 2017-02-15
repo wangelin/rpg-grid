@@ -11,8 +11,23 @@ const grid = {
   enemies: [{ x: 7, y: 3 }, { x: 9, y: 9 }]
 }
 
-const getXPosition = x => Math.floor(x / (grid.size + grid.space))
-const getYPosition = y => Math.floor(y / (grid.size + grid.space))
+const clamp = (n, min, max) => {
+  if (min > max) [min, max] = [max, min]
+  return n < min ? min : n > max ? max : n
+}
+
+const getXPosition = x => {
+  const { size, space, width } = grid
+  const xPosition = Math.floor(x / (size + space))
+  return x > xPosition * (size + space) + size
+    ? -1 : xPosition < 0 ? -1 : xPosition > width - 1 ? -1 : xPosition
+}
+const getYPosition = y => {
+  const { size, space, height } = grid
+  const yPosition = Math.floor(y / (size + space))
+  return y > yPosition * (size + space) + size
+    ? -1 : yPosition < 0 ? -1 : yPosition > height - 1 ? -1 : yPosition
+}
 const getXCoordinate = x => x * (grid.size + grid.space)
 const getYCoordinate = y => y * (grid.size + grid.space)
 

@@ -13,3 +13,34 @@ canvas {
   height: 100vh;
   width: 100vw;
 }
+
+.help {
+  background: rgba(255, 255, 255, 0.2);
+  color: black;
+  margin-top: 10px;
+  padding: 10px;
+}
+
+.prompt {
+  background: rgba(0, 0, 0, 0.2);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  padding: 20px;
+  width: 25vw;
+  transform: translate(-50%, -50%);
+}
+
+.prompt input {
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fc0;
+  padding: 6px;
+  font: 20pt monospace;
+  border: none;
+  width: 100%;
+}
+
+.prompt input.ok {
+color: #9c0;
+}
