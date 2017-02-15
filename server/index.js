@@ -1,16 +1,18 @@
 const io = require('socket.io')()
 
 const clients = {}
+
+const gridSnapshots = []
 const grid = {
   size: 64,
   space: 10,
-  width: 25,
-  height: 15,
+  width: 15,
+  height: 10,
   enemies: [{ x: 7, y: 3 }, { x: 9, y: 9 }]
 }
 
-const getXPosition = x => Math.floor((x - grid.space / 2) / (grid.size + grid.space))
-const getYPosition = y => Math.floor((y - grid.space / 2) / (grid.size + grid.space))
+const getXPosition = x => Math.floor(x / (grid.size + grid.space))
+const getYPosition = y => Math.floor(y / (grid.size + grid.space))
 const getXCoordinate = x => x * (grid.size + grid.space)
 const getYCoordinate = y => y * (grid.size + grid.space)
 

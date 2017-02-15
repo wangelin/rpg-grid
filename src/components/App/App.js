@@ -102,6 +102,8 @@ class App extends Component {
   }
 
   handleKeyDown (e) {
+    const { action } = this.state
+    let newAction
     switch (e.key) {
       case 'h':
         const height = prompt('Enter height')
@@ -111,14 +113,20 @@ class App extends Component {
         const width = prompt('Enter width')
         socket.emit('data', { width })
         break;
+      case 'p':
+        newAction = 'add-player'
+        this.setState({ action: action === newAction ? '' : newAction })
+        break;
       case 'e':
-        this.setState({ action: 'add-enemy' })
+        newAction = 'add-enemy'
+        this.setState({ action: action === newAction ? '' : newAction })
+        break;
     }
   }
 
   draw () {
     //console.count('draw')
-    const { clients, grid, viewX, viewY } = this.state
+    const { clients, grid, viewX, viewY, action } = this.state
 
     const context = this.canvas.getContext('2d')
     const { width: viewWidth, height: viewHeight } = this.canvas
@@ -184,6 +192,12 @@ class App extends Component {
           }
         }
       }
+    }
+
+    if (action) {
+      context.font = '20pt sans-serif'
+      context.fillStyle = 'black'
+      context.fillText(action, 10, 30)
     }
   }
 
