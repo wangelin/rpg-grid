@@ -5,8 +5,11 @@ class BoardState {
     this.width = width;
     this.height = height;
     this.data = [];
-    for (let i = 0, len = width * height; i < len; ++i) {
-      this.data[i] = initializer();
+
+    for (let y = 0; y < height; ++y) {
+      for (let x = 0; x < height; ++x) {
+        this.data[height * y + x] = initializer(x, y);
+      }
     }
   }
 
@@ -58,4 +61,4 @@ class BoardAggregate extends Aggregate {
   }
 }
 
-export default BoardAggregate;
+export {BoardAggregate, BoardState};
