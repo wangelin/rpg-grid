@@ -1,5 +1,26 @@
 const io = require('socket.io')()
 
+class Entity {
+  constructor ({ x, y, hp, damage = 0 }) {
+    this.x = x
+    this.y = y
+    this.hp = hp
+    this.damage = damage
+  }
+}
+
+class Enemy extends Entity {
+  constructor ({ x, y, hp }) {
+    super({ x, y, hp })
+  }
+}
+
+class Character extends Entity {
+  constructor ({ x, y, hp }) {
+    super({ x, y, hp })
+  }
+}
+
 const clients = {}
 
 const gridSnapshots = []
@@ -8,7 +29,8 @@ const grid = {
   space: 10,
   width: 15,
   height: 10,
-  enemies: [{ x: 7, y: 3 }, { x: 9, y: 9 }]
+  enemies: [],
+  characters: []
 }
 
 const clamp = (n, min, max) => {
@@ -31,6 +53,43 @@ const getYPosition = y => {
 const getXCoordinate = x => x * (grid.size + grid.space)
 const getYCoordinate = y => y * (grid.size + grid.space)
 
+const isEmpty = (x, y) => [...grid.enemies, ...grid.characters]
+  .filter(entity => entity.x === x && entity.y === y).length === 0
+
+const getEntity = (x, y) => [...grid.enemies, ...grid.characters]
+    .find(entity => entity.x === x && entity.y === y)
+
+const damage = data => {
+  const x = getXPosition(data.x)
+  const y = getYPosition(data.y)
+  const damage = parseInt(data.value, 10)
+  if (isNaN(damage)) return
+  const entity = getEntity(x, y)
+  if (!entity) return
+  entity.damage += damage
+}
+
+const cure = data => {
+  const x = getXPosition(data.x)
+  const y = getYPosition(data.y)
+  const cure = parseInt(data.value, 10)
+  if (isNaN(cure)) return
+  const entity = getEntity(x, y)
+  if (!entity) return
+  entity.damage -= cure
+}
+
+const addEntity = (className, data) => {
+  const x = getXPosition(data.x)
+  const y = getYPosition(data.y)
+  if (x === -1 || y === -1) return
+  const { hp = 10 } = data
+  if (isEmpty(x, y)) {
+    if (className === Enemy) grid.enemies.push(new className({ x, y, hp }))
+    if (className === Character) grid.characters.push(new className({ x, y, hp }))
+  }
+}
+
 io.on('connection', client => {
   console.log('client connected')
   clients[client.id] = {}
@@ -39,10 +98,10 @@ io.on('connection', client => {
     const x = getXPosition(data.x)
     const y = getYPosition(data.y)
 
-    for (const enemy of grid.enemies) {
-      if (enemy.x === x && enemy.y === y) {
+    for (const entity of [...grid.enemies, ...grid.characters]) {
+      if (entity.x === x && entity.y === y) {
         clients[client.id].floating = {
-          entity: enemy,
+          entity,
           x: data.x,
           y: data.y,
           offsetX: getXCoordinate(x) + grid.size / 2 - data.x,
@@ -52,9 +111,11 @@ io.on('connection', client => {
     }
     io.emit('update', { clients, grid })
   })
+
   client.on('init', () => {
     io.emit('init', { clients, grid })
   })
+
   client.on('mouseup', data => {
     clients[client.id].mousedown = false
     if (clients[client.id].floating) {
@@ -66,12 +127,14 @@ io.on('connection', client => {
     clients[client.id].floating = null
     io.emit('update', { clients, grid })
   })
+
   client.on('mousemove', data => {
     const { x, y } = data
     clients[client.id].x = x
     clients[client.id].y = y
     io.emit('update', { clients, grid })
   })
+
   client.on('data', data => {
     for (const key of Object.keys(data)) {
       switch (key) {
@@ -83,9 +146,15 @@ io.on('connection', client => {
       }
     }
   })
-  client.on('add-enemy', () => {
 
-  })
+  client.on('add-character', data => { addEntity(Character, data)})
+
+  client.on('add-enemy', data => { addEntity(Enemy, data)})
+
+  client.on('damage', damage)
+
+  client.on('cure', cure)
+
   client.on('disconnect', () => {
     delete clients[client.id]
     console.log('client disconnected')

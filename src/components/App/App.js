@@ -3,7 +3,13 @@ import './App.css'
 import io from 'socket.io-client'
 const socket = io('http://83.216.107.14:3001')
 
-const commands = ['add-player', 'add-enemy']
+const clamp = (n, min, max) => {
+  if (min > max) [min, max] = [max, min]
+  return n < min ? min : n > max ? max : n
+}
+
+const commands = ['h', 'help', 'add-player', 'add-enemy', 'delete', 'damage', 'cure']
+const valueCommands = ['damage', 'cure']
 
 class App extends Component {
   constructor (props) {
@@ -17,13 +23,16 @@ class App extends Component {
       zoom: 1,
       panning: false,
       prompt: false,
-      action: '',
-      promptText: ''
+      promptText: '',
+      value: false,
+      valueText: '',
+      action: ''
     }
 
     this.handleUpdate = this.handleUpdate.bind(this)
     this.handleInit = this.handleInit.bind(this)
     this.handlePrompt = this.handlePrompt.bind(this)
+    this.handleValue = this.handleValue.bind(this)
     this.handleMouseDown = this.handleMouseDown.bind(this)
     this.handleMouseUp = this.handleMouseUp.bind(this)
     this.handleMouseMove = this.handleMouseMove.bind(this)
@@ -64,14 +73,19 @@ class App extends Component {
     this.setState({ promptText: e.target.value })
   }
 
+  handleValue (e) {
+    this.setState({ valueText: e.target.value })
+  }
+
   handleMouseDown (e) {
     if (e.button === 0) {
-      const { viewX, viewY } = this.state
+      const { viewX, viewY, action, valueText: value } = this.state
       const x = e.pageX - viewX
       const y = e.pageY - viewY
-      socket.emit('mousedown', { x, y })
-      if (this.state.action === 'add-enemy') {
-        socket.emit('add-enemy')
+      if (action) {
+        socket.emit(action, { x, y, value })
+      } else {
+        socket.emit('mousedown', { x, y })
       }
     }
 
@@ -112,24 +126,37 @@ class App extends Component {
   }
 
   handleKeyDown (e) {
-    const { action, prompt, promptText } = this.state
+    const { action, prompt, promptText, value, valueText } = this.state
 
-    if (prompt) {
+    if (prompt || value) {
       switch (e.keyCode) {
         case 13:
-          const newAction = commands.indexOf(promptText) !== -1 ? promptText : ''
-          this.setState({ prompt: false, action: action === newAction ? '' : newAction })
+          if (prompt) {
+            const newAction = commands.indexOf(promptText) !== -1 ? promptText : ''
+            this.setState({ prompt: false, action: action === newAction ? '' : newAction })
+          }
+          if (value) {
+            this.setState({ value: false })
+          }
           break;
         case 27:
-          this.setState({ prompt: false })
+          this.setState({ prompt: false, value: false })
           break;
       }
       return
     }
+    if (e.keyCode === 27) {
+      this.setState({ prompt: false, value: false, action: '' })
+      return
+    }
+
     let newAction
     switch (e.key) {
       case 'p':
         this.setState({ prompt: true })
+        break;
+      case 'v':
+        this.setState({ value: true })
         break;
       case 'h':
         const height = window.prompt('Enter height')
@@ -150,6 +177,9 @@ class App extends Component {
       case 'e':
         newAction = 'add-enemy'
         this.setState({ action: action === newAction ? '' : newAction })
+        break;
+      case '=':
+        this.centerView()
         break;
     }
     e.preventDefault()
@@ -188,6 +218,40 @@ class App extends Component {
       context.closePath()
       context.fill()
 
+      for (const character of grid.characters) {
+        const x = viewX + character.x * (size + space) + size / 2
+        const y = viewY + character.y * (size + space) + size / 2
+
+        const fraction = clamp(character.damage || 0, 0, character.hp) / 10
+        context.beginPath()
+        context.arc(x, y, size / 2, 0, 2 * Math.PI)
+        context.closePath()
+        context.fillStyle = fraction === 1 ? 'rgba(96, 0, 0, 1)' : 'hsl(0, 0%, 75%)'
+        context.fill()
+        context.fillStyle = 'rgba(128, 0, 0, 1)'
+        context.font = '20pt sans-serif'
+        if (character.damage) {
+          const a = Math.acos(1 - 2 * fraction)
+          context.beginPath()
+          context.arc(x, y, size / 2 - clamp(size / 16, 0, size), 1/2 * Math.PI - a, 1/2 * Math.PI + a)
+          context.closePath()
+          context.fill()
+          context.font = '16pt sans-serif'
+          context.fillStyle = 'black'
+          context.textBaseline = 'middle'
+          context.textAlign = 'center'
+          context.fillText(character.damage, x, y - 12)
+          context.beginPath()
+          context.moveTo(x - 10, y);
+          context.lineTo(x + 10, y);
+          context.lineWidth = 2
+          context.closePath()
+          context.strokeStyle = 'black'
+          context.stroke()
+          context.fillText(character.hp, x, y + 12)
+        }
+      }
+
       for (const enemy of grid.enemies) {
         const x = viewX + enemy.x * (size + space) + size / 2
         const y = viewY + enemy.y * (size + space) + size / 2
@@ -197,6 +261,19 @@ class App extends Component {
         context.closePath()
         context.fillStyle = 'black'
         context.fill()
+        context.fillStyle = 'rgba(255, 0, 0, 0.5)'
+        context.font = '20pt sans-serif'
+        if (enemy.damage >= enemy.hp) {
+          context.beginPath()
+          context.arc(x, y, size / 2, 0, 2 * Math.PI)
+          context.closePath()
+          context.fill()
+          context.font = '16pt sans-serif'
+          context.fillStyle = 'black'
+          context.textBaseline = 'middle'
+          context.textAlign = 'center'
+          context.fillText(enemy.hp - enemy.damage, x, y)
+        }
       }
 
       if (clients) {
@@ -228,6 +305,8 @@ class App extends Component {
     if (action) {
       context.font = '20pt sans-serif'
       context.fillStyle = 'black'
+      context.textBaseline = 'middle'
+      context.textAlign = 'left'
       context.fillText(action, 10, 30)
     }
   }
@@ -264,6 +343,14 @@ class App extends Component {
   }
 
   componentDidUpdate (prevProps, prevState) {
+    const { action } = this.state
+    if (action !== prevState.action) {
+      if (valueCommands.indexOf(action) !== -1) {
+        this.setState({ value: true })
+      } else {
+        this.setState({ value: false })
+      }
+    }
     this.draw()
   }
 
@@ -273,13 +360,13 @@ class App extends Component {
   }
 
   render() {
-    const { prompt, promptText } = this.state
+    const { prompt, promptText, value, valueText, action } = this.state
     return (
       <div className='app'>
         <canvas ref={canvas => { this.canvas = canvas }}></canvas>
         {prompt && (
           <div className='prompt'>
-            <input type='text' placeholder='Type a command' autoFocus={true}
+            <input type='text' placeholder='Type a command (h for help)' autoFocus={true}
               className={commands.indexOf(promptText) !== -1 ? 'ok' : ''}
               onChange={this.handlePrompt}
               value={promptText} />
@@ -289,6 +376,12 @@ class App extends Component {
                   {commands.map(command => <li key={command}>{command}</li>)}
                 </ul>
               </div>)}
+          </div>)}
+        {value && (
+          <div className='prompt'>
+            <input type='text' placeholder={`Enter value${action ? ` for ${action}` : ''}`} autoFocus={true}
+              onChange={this.handleValue}
+              value={valueText} />
           </div>)}
       </div>
     )
