@@ -1,12 +1,12 @@
 class EventStore {
   constructor(log, bus) {
-    this.log = log;
-    this.bus = bus;
+    this.log = log || (() => {});
+    this.bus = bus || {publish: () => {}};
     this.streams = {};
   }
 
   getStream(streamId) {
-    if (this.streams.hasOwnProperty(streamId)) {
+    if (!this.streams.hasOwnProperty(streamId)) {
       this.log('Creating stream', streamId);
       this.streams[streamId] = [];
     }
@@ -16,21 +16,37 @@ class EventStore {
 
   appendStream(streamId, events) {
     let stream = this.getStream(streamId);
-
     this.log(`Appending ${events.length} events to stream`, streamId);
-    for (let ev in events) {
+    for (let ev of events) {
+      if (!this.validateEvent(ev)) {
+        throw `Attempted to store invalid event: ${ev}`;
+      }
+    }
+    for (let ev of events) {
       stream.push(ev);
       this.bus.publish(ev.type, ev.data);
     }
+  }
+
+  validateEvent(event) {
+    if (!event) {
+      return false;
+    }
+
+    if (typeof event.type !== 'string' || event.type.length === 0) {
+      return false;
+    }
+
+    if (typeof event.data === 'undefined' || event.data === null) {
+      return false;
+    }
+
+    return true;
   }
 }
 
 class Aggregate {
   constructor(log) {
-    if (new.target === Aggregate) {
-      throw 'Extend Aggregate to use it';
-    }
-
     this.log = log;
     this.handlers = {};
   }
@@ -45,7 +61,7 @@ class Aggregate {
       let evType = ev.type;
       let evData = ev.data;
 
-      this.applyEvent(evType, [evData]);
+      this.applyEvent(evType, evData);
     }
   }
 
@@ -55,7 +71,7 @@ class Aggregate {
 
     if (handler) {
       this.log(`Applying event of type ${evType}`);
-      handler.apply(this, evData);
+      handler.apply(this, [evData]);
     } else {
       this.log(`Skipping event of type ${evType}`);
     }
@@ -64,9 +80,6 @@ class Aggregate {
 
 class CommandHandler {
   constructor(log, eventStore) {
-    if (new.target === CommandHandler) {
-      throw 'Extend CommandHandler to use it';
-    }
     this.log = log;
     this.eventStore = eventStore;
   }
