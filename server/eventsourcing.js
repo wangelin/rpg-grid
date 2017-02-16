@@ -45,15 +45,16 @@ class Aggregate {
       let evType = ev.type;
       let evData = ev.data;
 
-      this.applyEvent(evType, evData);
+      this.applyEvent(evType, [evData]);
     }
   }
 
   applyEvent(evType, evData) {
+    this.log(this.handlers);
     let handler = this.handlers[evType];
 
     if (handler) {
-      this.log(`Appending event of type ${evType}`);
+      this.log(`Applying event of type ${evType}`);
       handler.apply(this, evData);
     } else {
       this.log(`Skipping event of type ${evType}`);

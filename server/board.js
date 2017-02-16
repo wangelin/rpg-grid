@@ -22,18 +22,19 @@ class BoardState {
 class BoardAggregate extends Aggregate {
   constructor(log) {
     super(log);
-    this.event('board.created', this.onBoardCreated);
+    this.event('board.created', this.onCreated);
     this.event('board.client_added', this.onClientAdded);
     this.event('board.client_removed', this.onClientRemoved);
     this.event('board.object_added', this.onObjectAdded);
     this.event('board.object_removed', this.onObjectRemoved);
     this.event('board.object_grabbed', this.onObjectGrabbed);
     this.event('board.object_dropped', this.onObjectDropped);
+    this.clients = {};
   }
 
   onCreated(ev) {
     this.boardId = ev.boardId;
-    this.state = new BoardState(this.width, this.height, () => [0, 0]);
+    this.state = new BoardState(ev.width, ev.height, () => [0, 0]);
   }
 
   onClientAdded(ev) {
@@ -53,7 +54,7 @@ class BoardAggregate extends Aggregate {
   onObjectGrabbed(ev) {
   }
 
-  onObjectPlaced(ev) {
+  onObjectDropped(ev) {
   }
 }
 
