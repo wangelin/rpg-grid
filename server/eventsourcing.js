@@ -14,6 +14,12 @@ class EventStore {
     return this.streams[streamId];
   }
 
+  loadAggregate(streamId, aggregate) {
+    let stream = this.getStream(streamId);
+    aggregate.applyEvents(stream);
+    return aggregate;
+  }
+
   appendStream(streamId, events) {
     let stream = this.getStream(streamId);
     this.log(`Appending ${events.length} events to stream`, streamId);
@@ -79,12 +85,11 @@ class Aggregate {
 }
 
 class CommandHandler {
-  constructor(log, eventStore) {
+  constructor(log) {
     this.log = log;
-    this.eventStore = eventStore;
   }
 
-  handle(command) {
+  execute(command) {
     throw 'Override me';
   }
 }

@@ -149,6 +149,21 @@ describe('EventStore', () => {
     expect(publish).toHaveBeenCalledTimes(0);
   });
 
+  it('can load an aggregate', () => {
+    let store = new EventStore(() => {}, {publish: () => {}});
+
+    let validEv = event('test', 'hello');
+    store.appendStream('s', [validEv]);
+
+    let handler = jest.fn();
+    let aggr = new Aggregate(() => {});
+    aggr.event('test', handler);
+
+    store.loadAggregate('s', aggr);
+
+    expect(handler).toHaveBeenCalledWith('hello');
+  });
+
   function event(t, d) {
     return {
       type: t,
