@@ -15,7 +15,7 @@ class Enemy extends Entity {
   }
 }
 
-class Character extends Entity {
+class Player extends Entity {
   constructor ({ x, y, hp }) {
     super({ x, y, hp })
   }
@@ -25,12 +25,12 @@ const clients = {}
 
 const gridSnapshots = []
 const grid = {
-  size: 64,
-  space: 10,
-  width: 15,
-  height: 10,
+  size: 32,
+  space: 0.5,
+  width: 60,
+  height: 30,
   enemies: [],
-  characters: []
+  players: []
 }
 
 const clamp = (n, min, max) => {
@@ -38,25 +38,37 @@ const clamp = (n, min, max) => {
   return n < min ? min : n > max ? max : n
 }
 
+const between = (n, min, max) => n >= min && n <= max
+
 const getXPosition = x => {
   const { size, space, width } = grid
-  const xPosition = Math.floor(x / (size + space))
-  return x > xPosition * (size + space) + size
-    ? -1 : xPosition < 0 ? -1 : xPosition > width - 1 ? -1 : xPosition
+  const xPosition = Math.floor((x + space / 2) / (size + space))
+  if (between(x, -space, 0)) {
+    return 0
+  } else if (between(x - (size + space) * width)) {
+    return width - 1
+  } else {
+    return xPosition
+  }
 }
 const getYPosition = y => {
   const { size, space, height } = grid
-  const yPosition = Math.floor(y / (size + space))
-  return y > yPosition * (size + space) + size
-    ? -1 : yPosition < 0 ? -1 : yPosition > height - 1 ? -1 : yPosition
+  const yPosition = Math.floor((y + space / 2) / (size + space))
+  if (between(y, -space, 0)) {
+    return 0
+  } else if (between(y - (size + space) * height)) {
+    return height - 1
+  } else {
+    return yPosition
+  }
 }
 const getXCoordinate = x => x * (grid.size + grid.space)
 const getYCoordinate = y => y * (grid.size + grid.space)
 
-const isEmpty = (x, y) => [...grid.enemies, ...grid.characters]
+const isEmpty = (x, y) => [...grid.enemies, ...grid.players]
   .filter(entity => entity.x === x && entity.y === y).length === 0
 
-const getEntity = (x, y) => [...grid.enemies, ...grid.characters]
+const getEntity = (x, y) => [...grid.enemies, ...grid.players]
     .find(entity => entity.x === x && entity.y === y)
 
 const damage = data => {
@@ -86,7 +98,7 @@ const addEntity = (className, data) => {
   const { hp = 10 } = data
   if (isEmpty(x, y)) {
     if (className === Enemy) grid.enemies.push(new className({ x, y, hp }))
-    if (className === Character) grid.characters.push(new className({ x, y, hp }))
+    if (className === Player) grid.players.push(new className({ x, y, hp }))
   }
 }
 
@@ -98,7 +110,7 @@ io.on('connection', client => {
     const x = getXPosition(data.x)
     const y = getYPosition(data.y)
 
-    for (const entity of [...grid.enemies, ...grid.characters]) {
+    for (const entity of [...grid.enemies, ...grid.players]) {
       if (entity.x === x && entity.y === y) {
         clients[client.id].floating = {
           entity,
@@ -147,7 +159,7 @@ io.on('connection', client => {
     }
   })
 
-  client.on('add-character', data => { addEntity(Character, data)})
+  client.on('add-player', data => { addEntity(Player, data)})
 
   client.on('add-enemy', data => { addEntity(Enemy, data)})
 
