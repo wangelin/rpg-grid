@@ -32,12 +32,10 @@ class BoardAggregate extends Aggregate {
     let object = ev.object;
     let position = ev.position;
 
-    let boardObject = new BoardObject(objectId, object, position);
-    let cell = this.state.getCell(position.x, position.y);
+    this.objects[objectId] = new BoardObject(objectId, object, position);
 
-    this.objects[objectId] = boardObject;
+    let cell = this.state.getCell(position.x, position.y);
     cell.addObject(objectId);
-    boardObject.addReference(cell);
   }
 
   onObjectRemoved(ev) {

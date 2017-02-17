@@ -21,33 +21,81 @@ describe('BoardAggregate', () => {
     expect(aggr.clients[5]).toBeFalsy();
 
     aggr.applyEvents([
-      {
-        type: 'board.client_added',
-        data: {
-          clientId: 5
-        }
-      }
+      {type: 'board.client_added', data: {clientId: 5}}
     ]);
 
     expect(aggr.clients[5]).toBeTruthy();
 
     aggr.applyEvents([
-      {
-        type: 'board.client_added',
-        data: {
-          clientId: 1
-        }
-      },
-      {
-        type: 'board.client_removed',
-        data: {
-          clientId: 5
-        }
-      }
+      {type: 'board.client_added', data: {clientId: 1}},
+      {type: 'board.client_removed', data: {clientId: 5}}
     ]);
 
     expect(aggr.clients[5]).toBeFalsy();
     expect(aggr.clients[1]).toBeTruthy();
+  });
+
+  it('can track contained objects', () => {
+    let aggr = newCreatedBoard();
+
+    aggr.applyEvents([
+      {
+        type: 'board.object_added',
+        data: {
+          objectId: 3,
+          object: {animalType: 'monkey'},
+          position: {x: 2, y: 1}
+        }
+      }
+    ]);
+
+    let object = aggr.objects[3];
+
+    expect(object).not.toBeNull();
+    expect(object).not.toBeUndefined();
+    expect(object.position).toEqual({x: 2, y: 1});
+
+    let cell = aggr.state.getCell(2, 1);
+
+    expect(cell.containsObject(3)).toBe(true);
+
+    aggr.applyEvents([
+      {type: 'board.object_removed', data: {objectId: 3}}
+    ]);
+
+    let notExistingObject = aggr.objects[3];
+    expect(notExistingObject).toBeNull();
+
+    expect(cell.containsObject(3)).toBe(false);
+  });
+
+  it('can track moved objects', () => {
+    let aggr = newCreatedBoard();
+
+    aggr.applyEvents([
+      {
+        type: 'board.object_added',
+        data: {
+          objectId: 3,
+          object: {animalType: 'monkey'},
+          position: {x: 2, y: 1}
+        }
+      },
+      {
+        type: 'board.object_moved',
+        data: {objectId: 3, position: {x: 3, y: 0}}
+      }
+    ]);
+
+    let obj = aggr.objects[3];
+
+    expect(obj.position).toEqual({x: 3, y: 0});
+
+    let oldCell = aggr.state.getCell(2, 1);
+    expect(oldCell.containsObject(3)).toBe(false);
+
+    let newCell = aggr.state.getCell(3, 0);
+    expect(newCell.containsObject(3)).toBe(true);
   });
 
   function newCreatedBoard(id, w, h) {
