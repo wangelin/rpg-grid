@@ -1,4 +1,4 @@
-import {BoardAggregate, BoardState} from './board';
+import {BoardAggregate, BoardState, BoardObject, BoardCell} from './board';
 
 describe('BoardAggregate', () => {
   it('can create board', () => {
@@ -29,7 +29,7 @@ describe('BoardAggregate', () => {
       }
     ]);
 
-    expect(aggr.clients[5]).toBe(true);
+    expect(aggr.clients[5]).toBeTruthy();
 
     aggr.applyEvents([
       {
@@ -47,7 +47,7 @@ describe('BoardAggregate', () => {
     ]);
 
     expect(aggr.clients[5]).toBeFalsy();
-    expect(aggr.clients[1]).toBe(true);
+    expect(aggr.clients[1]).toBeTruthy();
   });
 
   function newCreatedBoard(id, w, h) {
@@ -77,7 +77,7 @@ describe('BoardState', () => {
 
     for (let y = 0; y < state.height; ++y) {
       for (let x = 0; x < state.width; ++x) {
-        expect(state.getTile(y, x)).toEqual('grass');
+        expect(state.getCell(y, x).terrain).toEqual('grass');
       }
     }
   });
@@ -85,17 +85,73 @@ describe('BoardState', () => {
   it('can use coordinates in initializer', () => {
     let state = new BoardState(2, 2, (x, y) => { return {x: x, y: y}; });
 
-    expect(state.getTile(1, 0)).toEqual({x: 1, y: 0});
+    expect(state.getCell(1, 0).terrain).toEqual({x: 1, y: 0});
   });
 
-  it('can get tile in state', () => {
+  it('can get cell terrain', () => {
     let state = new BoardState(1, 1, () => 'a');
-    expect(state.getTile(0, 0)).toBe('a');
+    expect(state.getCell(0, 0).terrain).toBe('a');
   });
 
-  it('can set tile in state', () => {
+  it('can set cell terrain', () => {
     let state = new BoardState(2, 2, () => 'rock');
-    state.setTile(0, 1, 'roll');
-    expect(state.getTile(0, 1)).toEqual('roll');
+    state.setCellTerrain(0, 1, 'roll');
+    expect(state.getCell(0, 1).terrain).toEqual('roll');
+  });
+});
+
+describe('BoardObject', () => {
+  it('should construct', () => {
+    let obj = {apa: 'toa'};
+    let bo = new BoardObject(1, obj, {x: 1, y: 2});
+    expect(bo.objectId).toBe(1);
+    expect(bo.position).toEqual({x: 1, y: 2});
+    expect(bo.object).toBe(obj);
+  });
+
+  it('can be moved', () => {
+    let obj = {apa: 'toa'};
+    let bo = new BoardObject(1, obj, {x: 1, y: 2});
+
+    bo.move(3, 1);
+
+    expect(bo.position).toEqual({x: 3, y: 1});
+  });
+});
+
+describe('BoardCell', () => {
+  it('should construct', () => {
+    let cell = new BoardCell('grass');
+    expect(cell.terrain).toBe('grass');
+    expect(cell.objects).toEqual([]);
+  });
+
+  it('can contain objects', () => {
+    let cell = new BoardCell('grass');
+    cell.addObject(5);
+    expect(cell.objects).toEqual([5]);
+    expect(cell.containsObject(5)).toBe(true);
+  });
+
+  it('can have contained objects removed', () => {
+    let cell = new BoardCell('terrain');
+    cell.addObject(2);
+    cell.addObject(3);
+    cell.addObject(1);
+    cell.removeObject(3);
+    expect(cell.objects).toEqual([2, 1]);
+  });
+
+  it('can only contain an object once', () => {
+    let cell = new BoardCell('once');
+    cell.addObject(6);
+    cell.addObject(6);
+    expect(cell.objects).toEqual([6]);
+  });
+
+  it('allows attempts to remove not contained object', () => {
+    let cell = new BoardCell('terrain');
+    cell.removeObject(3);
+    expect(cell.objects).toEqual([]);
   });
 });
