@@ -20,7 +20,7 @@ class BoardAggregate extends Aggregate {
   }
 
   onClientAdded(ev) {
-    this.clients[ev.clientId] = {};
+    this.clients[ev.clientId] = {position: null};
   }
 
   onClientRemoved(ev) {
@@ -32,7 +32,7 @@ class BoardAggregate extends Aggregate {
     let object = ev.object;
     let position = ev.position;
 
-    let boardObject = new BoardObject(object);
+    let boardObject = new BoardObject(objectId, object, position);
     let cell = this.state.getCell(position.x, position.y);
 
     this.objects[objectId] = boardObject;
@@ -46,7 +46,9 @@ class BoardAggregate extends Aggregate {
 
     this.objects[objectId] = null;
 
-    boardObject.remove();
+    let currentPosition = boardObject.position;
+    let currentCell = this.state.getCell(currentPosition.x, currentPosition.y);
+    currentCell.removeObject(objectId);
   }
 
   onObjectGrabbed(ev) {
@@ -59,6 +61,7 @@ class BoardAggregate extends Aggregate {
   onObjectMoved(ev) {
     let objectId = ev.objectId;
     let clientId = ev.clientId;
+    let position = ev.position;
 
     this.log(`${clientId} moved ${objectId} to ${position.x}, ${position.y}`);
 
@@ -102,7 +105,7 @@ class BoardObject {
   constructor(objectId, obj, position) {
     this.objectId = objectId;
     this.object = obj;
-    this.position = position;
+    this.position = {x: position.x, y: position.y};
   }
 
   move(x, y) {
