@@ -1,3 +1,7 @@
+import {EventStore} from './eventsourcing';
+import {BoardAggregate} from './board';
+import {CreateBoardCommandHandler} from './board.commands';
+
 const io = require('socket.io')()
 
 class Entity {
@@ -32,6 +36,23 @@ const grid = {
   enemies: [],
   characters: []
 }
+
+let log = console.log;
+let publisher = {publish: () => {}};
+let eventStore = new EventStore(log, publisher);
+
+let createBoardCommandHandler = new CreateBoardCommandHandler(log, eventStore);
+
+createBoardCommandHandler.execute({
+  clientId: 1,
+  requestId: 'something',
+  width: 10,
+  height: 10
+});
+
+let aggregate = eventStore.loadAggregate(new BoardAggregate());
+
+console.log('aggregate created', aggregate.created);
 
 const clamp = (n, min, max) => {
   if (min > max) [min, max] = [max, min]
