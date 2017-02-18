@@ -2,7 +2,7 @@ import {CommandHandler} from './eventsourcing';
 import {BoardAggregate} from './board';
 const uuid = require('node-uuid');
 
-class CreateBoardCommandHandler extends CommandHandler {
+class CreateBoardCommandHandler {
   constructor(log, eventStore) {
     super(log);
     this.eventStore = eventStore;
