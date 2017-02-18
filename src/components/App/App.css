@@ -7,7 +7,7 @@ div.app {
   justify-content: center;
 }
 
-canvas {
+canvas.board-canvas {
   background: hsl(205, 0%, 20%);
   cursor: none;
   height: 100vh;
@@ -41,6 +41,45 @@ canvas {
   width: 100%;
 }
 
+.prompt .row {
+  display: flex;
+  margin: -10px;
+}
+
+.prompt .row > * {
+  flex: 1 1 0;
+  margin: 10px;
+}
+
+.prompt .gallery {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  max-height: 270px;
+  margin-top: 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.prompt .gallery > canvas {
+  margin-bottom: 20px;
+}
+
+.prompt label {
+  background: hsla(0, 0%, 0%, 0.5);
+  color: #fc0;
+  font: 20pt sans-serif;
+  font-variant: small-caps;
+  display: block;
+  padding: 10px;
+}
+
+.prompt label input {
+  border: 5px solid #fc0;
+  background: transparent;
+  margin-top: 5px;
+}
+
 .prompt input.ok {
-color: #9c0;
+  color: #9c0;
 }
