@@ -10,6 +10,11 @@ const zoomStep = 0.25
 const zoomMin = 0.25
 const zoomMax = 8
 
+const tileCanvas = document.createElement('canvas')
+const tileContext = tileCanvas.getContext('2d')
+const memoryCanvas = document.createElement('canvas')
+const memoryContext = memoryCanvas.getContext('2d')
+
 const clamp = (n, min, max) => {
   if (min > max) [min, max] = [max, min]
   return n < min ? min : n > max ? max : n
@@ -20,23 +25,34 @@ const valueCommands = ['damage', 'cure']
 
 const drawImagePart =  (context, image, size = 256, col = 0, row = 0,
   { targetX = 0, targetY = 0, targetSize = size, circle = false } = {}) => {
-  const tempCanvas = document.createElement('canvas')
-  tempCanvas.width = targetSize
-  tempCanvas.height = targetSize
-  const tempContext = tempCanvas.getContext('2d')
-  tempContext.drawImage(image,
+  memoryContext.drawImage(image,
     col * size, row * size, size, size,
     0, 0, targetSize, targetSize)
   if (circle) {
-    tempContext.fillStyle = '#fff'
-    tempContext.globalCompositeOperation = 'destination-in'
-    tempContext.beginPath()
-    tempContext.arc(targetSize / 2, targetSize / 2, targetSize / 2, 0, 2 * Math.PI, false)
-    tempContext.closePath()
-    tempContext.fill()
+    memoryContext.fillStyle = '#fff'
+    memoryContext.globalCompositeOperation = 'destination-in'
+    memoryContext.beginPath()
+    memoryContext.arc(targetSize / 2, targetSize / 2, targetSize / 2, 0, 2 * Math.PI, false)
+    memoryContext.closePath()
+    memoryContext.fill()
   }
-  tempContext.globalCompositeOperation = 'source-over'
-  context.drawImage(tempCanvas, targetX, targetY)
+  memoryContext.globalCompositeOperation = 'source-over'
+  context.drawImage(memoryCanvas, targetX, targetY)
+}
+
+const drawTile =  (context, tileSetImage, tileSize = 256, tile = [0, 0, 0, 0, 0],
+  { targetX = 0, targetY = 0, targetSize = tileSize } = {}) => {
+  tileCanvas.width = targetSize
+  tileCanvas.height = targetSize
+  tileContext.translate(targetSize / 2, targetSize / 2)
+  const [ col, row, rot, flip, flop ] = tile
+  if (rot > 0) tileContext.rotate(rot * Math.PI / 2)
+  if (flip || flop) tileContext.scale(flip ? -1 : 1, flop ? -1 : 1)
+  tileContext.drawImage(tileSetImage,
+    col * tileSize, row * tileSize, tileSize, tileSize,
+    -targetSize / 2, -targetSize / 2, targetSize, targetSize)
+  tileContext.setTransform(1, 0, 0, 1, 0, 0)
+  context.drawImage(tileCanvas, targetX, targetY)
 }
 
 const drawCheck = (context, size = 256, padding = 0) => {
@@ -94,10 +110,11 @@ class App extends Component {
   gridInnerHeight = () => { const { height, size, space } = this.state.grid ; return height * (size + space) - space }
   gridOuterHeight = () => { const { height, size, space } = this.state.grid ; return height * (size + space) + space }
 
-  async loadImages () {
+  async loadImages (images) {
     const imagesPromises = []
     for (const imageInfo of
       [
+        ...images,
         { name: 'playerPortraits', count: 4, size: 256, src: playerPortraits },
         { name: 'monsterPortraits', count: 2, size: 768, src: monsterPortraits }
       ]) {
@@ -125,10 +142,23 @@ class App extends Component {
 
   handleInit (data) {
     const { clients, grid } = data
-    this.setState({ clients, grid }, () => {
-      this.resizeCanvas()
-      this.centerView()
-      this.draw()
+    this.loadImages([{ name: 'tileSet', src: require(`../../../public/assets/tilesets/${grid.tileSet}`)}]).then(images => {
+      this.images = images.reduce((obj, current) => {
+        const { image, imageInfo, success } = current
+        obj[imageInfo.name] = {
+          image,
+          src: imageInfo.src,
+          size: imageInfo.size,
+          count: imageInfo.count,
+          success
+        }
+        return obj
+      }, {})
+      this.setState({ clients, grid }, () => {
+        this.resizeCanvas()
+        this.centerView()
+        this.draw()
+      })
     })
   }
 
@@ -271,6 +301,8 @@ class App extends Component {
       const totalHeight = (size + space) * height - space
       const offsetX = Math.floor((viewWidth - totalWidth) / 2)
       const offsetY = Math.floor((viewHeight - totalHeight) / 2)
+
+      // Background
       context.fillStyle = 'hsl(100, 35%, 35%)'
       context.fillRect(
         viewX - (zoom * space),
@@ -279,6 +311,7 @@ class App extends Component {
         zoom * (totalHeight + 2 * space))
       context.fillStyle = 'hsl(100, 35%, 40%)'
 
+      // Tiles
       context.beginPath()
       let x
       let y
@@ -286,7 +319,15 @@ class App extends Component {
         x = c * (size + space)
         for (let r = 0; r < height; r++) {
           y = r * (size + space)
-          if (x + size + space > 0 || y + size + space > 0) context.rect(viewX + zoom * x, viewY + zoom * y, zoom * size, zoom * size)
+          if (x + size + space > 0 || y + size + space > 0) {
+            //context.rect(viewX + zoom * x, viewY + zoom * y, zoom * size, zoom * size)
+            const tile = grid.tileData[r * grid.width + c]
+            drawTile(context, this.images.tileSet.image, grid.tileSize, tile, {
+              targetX: viewX + zoom * x,
+              targetY: viewY + zoom * y,
+              targetSize: zoom * grid.size
+            })
+          }
           if (y + size + space > viewHeight) break
         }
         if (x + size + space > viewWidth) break
@@ -294,6 +335,7 @@ class App extends Component {
       context.closePath()
       context.fill()
 
+      // Players
       for (const player of grid.players) {
         const x = player.x * (size + space) + size / 2
         const y = player.y * (size + space) + size / 2
@@ -334,6 +376,7 @@ class App extends Component {
         }
       }
 
+      // Enemies
       let { image, size: sourceSize, count, success } = this.images.monsterPortraits
       for (const enemy of grid.enemies) {
         const x = enemy.x * (size + space) + size / 2
@@ -362,6 +405,7 @@ class App extends Component {
         }
       }
 
+      // Client pointers
       if (clients) {
         for (const id of Object.keys(clients)) {
           const { x, y, mousedown, floating } = clients[id]
@@ -447,22 +491,9 @@ class App extends Component {
     this.canvas.addEventListener('mouseleave', this.handleMouseLeave)
     window.addEventListener('resize', this.resizeCanvas, false)
     window.addEventListener('keydown', this.handleKeyDown)
-    this.loadImages().then(images => {
-      this.images = images.reduce((obj, current) => {
-        const { image, imageInfo, success } = current
-        obj[imageInfo.name] = {
-          image,
-          src: imageInfo.src,
-          size: imageInfo.size,
-          count: imageInfo.count,
-          success
-        }
-        return obj
-      }, {})
-      socket.on('update', this.handleUpdate)
-      socket.on('init', this.handleInit)
-      socket.emit('init')
-    })
+    socket.on('update', this.handleUpdate)
+    socket.on('init', this.handleInit)
+    socket.emit('init')
   }
 
   componentWillUnmount () {
