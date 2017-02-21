@@ -14,19 +14,20 @@ const grid = {
   tileSet: 'dungeon_gray_001.png',
   tileSize: 256,
   tileData: [
-    [0, 13, 0, 1], [0, 5, 1], [0, 4, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 5, 0, 2], [0, 14, 0], [0, 14, 0], [0, 13, 0, 1], [0, 5, 1], [0, 5, 1], [0, 5, 1], [0, 5, 1],
-    [1, 14, 0], [1, 14, 0], [1, 14, 0], [1, 14, 0], [1, 14, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
-    [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 14, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 14, 0], [1, 14, 0], [1, 14, 0], [1, 14, 0], [1, 14, 0], [0, 0, 0],
-    [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 14, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 14, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 14, 0], [0, 0, 0],
-    [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 14, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 14, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 14, 0], [1, 14, 0],
-    [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 14, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 14, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
-    [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 14, 0], [1, 14, 0], [1, 14, 0], [1, 14, 0], [1, 14, 0], [1, 14, 0], [1, 14, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
-    [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
-    [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
-  ],
-  enemies: [],
-  players: []
+//      1              2          3          4           5           6           7           8             9           10          11             12         13         14         15          16
+/* 1 */ [0, 13, 0, 1], [0, 5, 1], [0, 4, 0], [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 5, 0, 2], [0, 14, 0], [0, 14, 0], [0, 13, 0, 1], [0, 5, 1], [0, 5, 1], [0, 5, 1], [0, 5, 1],  [0, 5, 1],
+/* 2 */ [0, 4, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 4, 1],    [0, 5, 1],  [0, 5, 1],  [0, 4, 0],     [1, 2, 3], [1, 3, 1], [1, 3, 1], [1, 2, 1],  [0, 0, 0],
+/* 3 */ [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],    [0, 0, 0],  [0, 0, 0],  [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],
+/* 4 */ [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 4, 2],  [0, 4, 3],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],    [0, 0, 0],  [0, 0, 0],  [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],
+/* 5 */ [0, 0, 0],     [0, 0, 0], [0, 4, 2], [0, 11, 1], [0, 4, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],    [0, 0, 0],  [0, 0, 0],  [0, 0, 0],     [1, 2, 3], [1, 3, 1], [1, 3, 1], [1, 2, 1],  [0, 0, 0],
+/* 6 */ [0, 0, 0],     [0, 0, 0], [0, 4, 1], [0, 4, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],    [0, 0, 0],  [0, 0, 0],  [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],
+/* 7 */ [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 1, 0],    [0, 0, 0],  [0, 0, 0],  [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],
+/* 8 */ [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],    [0, 0, 0],  [0, 0, 0],  [0, 0, 0],     [0, 0, 0], [0, 1, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],
+/* 9 */ [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],    [0, 0, 0],  [0, 0, 0],  [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],
+  ]
 }
+const enemies = []
+const players = []
 
 const clamp = (n, min, max) => {
   if (min > max) [min, max] = [max, min]
@@ -60,10 +61,10 @@ const getYPosition = y => {
 const getXCoordinate = x => x * (grid.size + grid.space)
 const getYCoordinate = y => y * (grid.size + grid.space)
 
-const isEmpty = (x, y) => [...grid.enemies, ...grid.players]
+const isEmpty = (x, y) => [...enemies, ...players]
   .filter(entity => entity.x === x && entity.y === y).length === 0
 
-const getEntity = (x, y) => [...grid.enemies, ...grid.players]
+const getEntity = (x, y) => [...enemies, ...players]
     .find(entity => entity.x === x && entity.y === y)
 
 const damage = data => {
@@ -92,9 +93,11 @@ const addEntity = (className, data) => {
   if (x === -1 || y === -1) return
   const { hp = 10 } = data
   if (isEmpty(x, y)) {
-    if (className === Enemy) grid.enemies.push(new className({ x, y, hp }))
-    if (className === Player) grid.players.push(new className({ x, y, hp }))
+    if (className === Enemy) enemies.push(new className({ x, y, hp }))
+    if (className === Player) players.push(new className({ x, y, hp }))
+    return true
   }
+  return false
 }
 
 io.on('connection', client => {
@@ -105,8 +108,10 @@ io.on('connection', client => {
     const x = getXPosition(data.x)
     const y = getYPosition(data.y)
 
-    for (const entity of [...grid.enemies, ...grid.players]) {
+    let clickedEntity
+    for (const entity of [...enemies, ...players]) {
       if (entity.x === x && entity.y === y) {
+        clickedEntity = entity
         clients[client.id].floating = {
           entity,
           x: data.x,
@@ -114,13 +119,18 @@ io.on('connection', client => {
           offsetX: getXCoordinate(x) + grid.size / 2 - data.x,
           offsetY: getYCoordinate(y) + grid.size / 2 - data.y
         }
+        break
       }
     }
-    io.emit('update', { clients, grid })
+    io.emit('update', Object.assign(
+      { clients },
+      clickedEntity && clickedEntity.constructor === Player && { players },
+      clickedEntity && clickedEntity.constructor === Enemy && { enemies }
+    ))
   })
 
   client.on('init', () => {
-    io.emit('init', { clients, grid })
+    io.emit('init', { clients, grid, enemies, players })
   })
 
   client.on('mouseup', data => {
@@ -128,18 +138,25 @@ io.on('connection', client => {
     if (clients[client.id].floating) {
       const x = getXPosition(data.x)
       const y = getYPosition(data.y)
-      clients[client.id].floating.entity.x = x
-      clients[client.id].floating.entity.y = y
+      const entity = clients[client.id].floating.entity
+      entity.x = x
+      entity.y = y
+      clients[client.id].floating = null
+      io.emit('update', Object.assign(
+        { clients },
+        entity.constructor === Player && { players },
+        entity.constructor === Enemy && { enemies }
+      ))
+    } else {
+      io.emit('update', { clients })
     }
-    clients[client.id].floating = null
-    io.emit('update', { clients, grid })
   })
 
   client.on('mousemove', data => {
     const { x, y } = data
     clients[client.id].x = x
     clients[client.id].y = y
-    io.emit('update', { clients, grid })
+    io.emit('update', { clients })
   })
 
   client.on('data', data => {
@@ -154,9 +171,13 @@ io.on('connection', client => {
     }
   })
 
-  client.on('add-player', data => { addEntity(Player, data)})
+  client.on('add-player', data => {
+    if (addEntity(Player, data)) io.emit('update', { players })
+  })
 
-  client.on('add-enemy', data => { addEntity(Enemy, data)})
+  client.on('add-enemy', data => {
+    if (addEntity(Enemy, data)) io.emit('update', { enemies })
+  })
 
   client.on('damage', damage)
 

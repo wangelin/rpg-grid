@@ -2,6 +2,7 @@ import React, { Component } from 'react'
 import './App.css'
 import io from 'socket.io-client'
 const socket = io('http://83.216.107.14:3001')
+import { throttle } from 'lodash'
 
 import playerPortraits from '../../../public/assets/portraits/player_portraits_001.png'
 import monsterPortraits from '../../../public/assets/portraits/monster_portraits_001.png'
@@ -96,7 +97,7 @@ class App extends Component {
     this.handleValue = this.handleValue.bind(this)
     this.handleMouseDown = this.handleMouseDown.bind(this)
     this.handleMouseUp = this.handleMouseUp.bind(this)
-    this.handleMouseMove = this.handleMouseMove.bind(this)
+    this.handleMouseMove = throttle(this.handleMouseMove, 50).bind(this)
     this.handleMouseLeave = this.handleMouseLeave.bind(this)
     this.handleKeyDown = this.handleKeyDown.bind(this)
     this.resizeCanvas = this.resizeCanvas.bind(this)
@@ -136,12 +137,16 @@ class App extends Component {
   }
 
   handleUpdate (data) {
-    const { clients, grid } = data
-    this.setState({ clients, grid })
+    const { clients, grid, players, enemies } = data
+    this.setState(Object.assign({},
+      clients && { clients },
+      grid && { grid },
+      players && { players },
+      enemies && { enemies }))
   }
 
   handleInit (data) {
-    const { clients, grid } = data
+    const { clients, grid, players, enemies } = data
     this.loadImages([{ name: 'tileSet', src: require(`../../../public/assets/tilesets/${grid.tileSet}`)}]).then(images => {
       this.images = images.reduce((obj, current) => {
         const { image, imageInfo, success } = current
@@ -154,7 +159,7 @@ class App extends Component {
         }
         return obj
       }, {})
-      this.setState({ clients, grid }, () => {
+      this.setState({ clients, grid, players, enemies }, () => {
         this.resizeCanvas()
         this.centerView()
         this.draw()
@@ -219,7 +224,7 @@ class App extends Component {
   }
 
   handleKeyDown (e) {
-    const { action, prompt, promptText, value, valueText, entityStats, zoom } = this.state
+    const { action, prompt, promptText, value, entityStats, zoom } = this.state
 
     if (prompt || value || entityStats) {
       switch (e.keyCode) {
@@ -250,6 +255,7 @@ class App extends Component {
         break;
       case 'v':
         this.setState({ value: true })
+        e.preventDefault()
         break;
       case 's':
         this.setState({ entityStats: true })
@@ -263,14 +269,17 @@ class App extends Component {
       case 'h':
         const height = window.prompt('Enter height')
         socket.emit('data', { height })
+        e.preventDefault()
         break;
       case 'w':
         const width = window.prompt('Enter width')
         socket.emit('data', { width })
+        e.preventDefault()
         break;
       case 'd':
         newAction = 'damage'
         this.setState({ action: action === newAction ? '' : newAction })
+        e.preventDefault()
         break;
       case 'c':
         newAction = 'add-player'
@@ -284,43 +293,43 @@ class App extends Component {
         this.centerView()
         break;
     }
-    e.preventDefault()
+    //e.preventDefault()
   }
 
   draw () {
     //console.count('draw')
-    const { clients, grid, viewX, viewY, action, entityStats, zoom } = this.state
+    const { clients, grid, players, enemies, viewX, viewY, action, entityStats, zoom } = this.state
 
     const context = this.canvas.getContext('2d')
     const { width: viewWidth, height: viewHeight } = this.canvas
     context.clearRect(0, 0, viewWidth, viewHeight)
 
     if (grid) {
-      const { width, height, enemies, size, space } = grid
+      const { width, height, size, space } = grid
       const totalWidth = (size + space) * width - space
       const totalHeight = (size + space) * height - space
       const offsetX = Math.floor((viewWidth - totalWidth) / 2)
       const offsetY = Math.floor((viewHeight - totalHeight) / 2)
 
       // Background
-      context.fillStyle = 'hsl(100, 35%, 35%)'
+      context.fillStyle = 'black' // 'hsl(100, 35%, 35%)'
       context.fillRect(
         viewX - (zoom * space),
         viewY - (zoom * space),
         zoom * (totalWidth + 2 * space),
         zoom * (totalHeight + 2 * space))
-      context.fillStyle = 'hsl(100, 35%, 40%)'
+      //context.fillStyle = 'hsl(100, 35%, 40%)'
 
       // Tiles
-      context.beginPath()
+      //context.beginPath()
       let x
       let y
       for (let c = 0; c < width; c++) {
         x = c * (size + space)
         for (let r = 0; r < height; r++) {
           y = r * (size + space)
-          if (x + size + space > 0 || y + size + space > 0) {
-            //context.rect(viewX + zoom * x, viewY + zoom * y, zoom * size, zoom * size)
+          if (viewX + zoom * (x + size + space) > 0 && viewY + zoom * (y + size + space) > 0) {
+            //context.fillRect(viewX + zoom * x, viewY + zoom * y, zoom * size, zoom * size)
             const tile = grid.tileData[r * grid.width + c]
             drawTile(context, this.images.tileSet.image, grid.tileSize, tile, {
               targetX: viewX + zoom * x,
@@ -328,15 +337,15 @@ class App extends Component {
               targetSize: zoom * grid.size
             })
           }
-          if (y + size + space > viewHeight) break
+          if (viewY + zoom * (y + size + space) > viewHeight) break
         }
-        if (x + size + space > viewWidth) break
+        if (viewX + zoom * (x + size + space) > viewWidth) break
       }
-      context.closePath()
-      context.fill()
+      //context.closePath()
+      //context.fill()
 
       // Players
-      for (const player of grid.players) {
+      for (const player of players) {
         const x = player.x * (size + space) + size / 2
         const y = player.y * (size + space) + size / 2
 
@@ -378,7 +387,7 @@ class App extends Component {
 
       // Enemies
       let { image, size: sourceSize, count, success } = this.images.monsterPortraits
-      for (const enemy of grid.enemies) {
+      for (const enemy of enemies) {
         const x = enemy.x * (size + space) + size / 2
         const y = enemy.y * (size + space) + size / 2
 
@@ -423,7 +432,7 @@ class App extends Component {
                 }
               }
               context.closePath()
-              context.fillStyle = 'rgba(0, 0, 0, 0.05)'
+              context.fillStyle = 'hsla(48, 50%, 50%, 0.25)'
               context.fill()
               const { offsetX, offsetY } = floating
               context.beginPath()
@@ -524,7 +533,18 @@ class App extends Component {
   }
 
   render() {
-    const { prompt, promptText, value, valueText, action, entityStats } = this.state
+    const {
+      prompt,
+      promptText,
+      value,
+      valueText,
+      action,
+      entityStats,
+      //clients,
+      //viewX,
+      //viewY
+    } = this.state
+    //const ids = clients ? Object.keys(clients) : []
     this.galleryCanvases = []
 
     const CommandPrompt = prompt && (
@@ -569,12 +589,21 @@ class App extends Component {
       </div>
     )
 
+    //const Cursor = ({ style }) => (
+    //  <svg className='cursor' width={12} height={17} style={style}>
+    //    <polygon points='0,0 0,17 12,12 0,0' />
+    //  </svg>)
+
     return (
       <div className='app'>
         <canvas className='board-canvas' ref={canvas => { this.canvas = canvas }}></canvas>
         {CommandPrompt}
         {ValuePrompt}
         {EntityStatsDialog}
+        {/*ids.map(id => (<Cursor key={id} style={{
+          left: `${viewX + clients[id].x}px`,
+          top: `${viewY + clients[id].y}px`
+        }} />))*/}
       </div>
     )
   }
