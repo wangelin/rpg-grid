@@ -1,13 +1,13 @@
 const io = require('socket.io')()
 
-import Player from './js/Player'
-import Enemy from './js/Enemy'
+import Player from '../src/js/Player'
+import Enemy from '../src/js/Enemy'
 
 const clients = {}
 
 const gridSnapshots = []
 const grid = {
-  size: 128,
+  size: 256,
   space: 0,
   width: 16,
   height: 9,
@@ -101,7 +101,7 @@ const addEntity = (className, data) => {
 }
 
 io.on('connection', client => {
-  console.log('client connected')
+  console.log(`client connected: ${client.id}`)
   clients[client.id] = {}
   client.on('mousedown', data => {
     clients[client.id].mousedown = true
@@ -130,6 +130,7 @@ io.on('connection', client => {
   })
 
   client.on('init', () => {
+    client.emit('id-assign', { id: client.id })
     io.emit('init', { clients, grid, enemies, players })
   })
 

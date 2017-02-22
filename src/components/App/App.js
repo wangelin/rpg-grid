@@ -4,6 +4,9 @@ import io from 'socket.io-client'
 const socket = io('http://83.216.107.14:3001')
 import { throttle } from 'lodash'
 
+import Player from '../../js/Player'
+import Enemy from '../../js/Enemy'
+
 import playerPortraits from '../../../public/assets/portraits/player_portraits_001.png'
 import monsterPortraits from '../../../public/assets/portraits/monster_portraits_001.png'
 
@@ -26,6 +29,8 @@ const valueCommands = ['damage', 'cure']
 
 const drawImagePart =  (context, image, size = 256, col = 0, row = 0,
   { targetX = 0, targetY = 0, targetSize = size, circle = false } = {}) => {
+  memoryCanvas.width = targetSize
+  memoryCanvas.height = targetSize
   memoryContext.drawImage(image,
     col * size, row * size, size, size,
     0, 0, targetSize, targetSize)
@@ -73,20 +78,38 @@ class App extends Component {
   constructor (props) {
     super(props)
 
+    this.id = null
+
     this.state = {
       clients: null,
       grid: null,
       viewX: 0,
       viewY: 0,
-      zoom: 1,
+      zoom: parseFloat(localStorage.getItem('zoom'), 10) || 1,
       panning: false,
       prompt: false,
       promptText: '',
       value: false,
       valueText: '',
       entityStats: false,
+      entity: Player,
+      player: new Player({
+        name: 'Super Macho Man',
+        portrait: undefined,
+        hp: 10,
+        speed: 30,
+        size: 1
+      }),
+      enemy: new Enemy({
+        name: 'Targus Fenix',
+        portrait: undefined,
+        hp: 20,
+        speed: 30,
+        size: 2
+      }),
       imagesLoaded: false,
-      action: ''
+      action: '',
+      animations: null
     }
 
     this.images = {}
@@ -97,7 +120,7 @@ class App extends Component {
     this.handleValue = this.handleValue.bind(this)
     this.handleMouseDown = this.handleMouseDown.bind(this)
     this.handleMouseUp = this.handleMouseUp.bind(this)
-    this.handleMouseMove = throttle(this.handleMouseMove, 50).bind(this)
+    this.handleMouseMove = throttle(this.handleMouseMove, 15).bind(this)
     this.handleMouseLeave = this.handleMouseLeave.bind(this)
     this.handleKeyDown = this.handleKeyDown.bind(this)
     this.resizeCanvas = this.resizeCanvas.bind(this)
@@ -138,8 +161,35 @@ class App extends Component {
 
   handleUpdate (data) {
     const { clients, grid, players, enemies } = data
+    //const animations = []
+    //if (clients) {
+    //  const { clients: prevClients, viewX, viewY } = this.state
+    //  const styleSheet = document.styleSheets[0]
+    //  for (const id of Object.keys(clients)) {
+    //    const client = clients[id]
+    //    const prevClient = prevClients ? prevClients[id] : client
+    //    if (client.x && client.y) {
+    //      if (!(client.x === prevClient.x && client.y === prevClient.y)) {
+    //        const animation = `animation-${id}`
+    //        animations.push(animation)
+    //        const oldIndex = Array.from(styleSheet.rules).findIndex(rule => rule.name === animation)
+    //        if (oldIndex !== -1) styleSheet.deleteRule(oldIndex)
+    //        const translateFrom = `translate(${viewX + (prevClient ? prevClient.x : client.x)}px, ${viewY + (prevClient ? prevClient.y : client.y)}px)`
+    //        const translateTo = `translate(${viewX + client.x}px, ${viewY + client.y}px)`
+    //        const keyframes = `@-webkit-keyframes ${animation} {
+    //          from {-webkit-transform:${translateFrom}}
+    //          to {-webkit-transform:${translateTo}}
+    //        }`
+    //        styleSheet.insertRule(keyframes, styleSheet.cssRules.length)
+    //        //-ms-transform
+    //        //transform
+    //      }
+    //    }
+    //  }
+    //}
     this.setState(Object.assign({},
       clients && { clients },
+      //animations.length && { animations },
       grid && { grid },
       players && { players },
       enemies && { enemies }))
@@ -240,6 +290,7 @@ class App extends Component {
         case 27:
           this.setState({ prompt: false, value: false, entityStats: false })
           break;
+        default:
       }
       return
     }
@@ -249,9 +300,11 @@ class App extends Component {
     }
 
     let newAction
+    let newZoom
     switch (e.key) {
       case 'p':
         this.setState({ prompt: true })
+        e.preventDefault()
         break;
       case 'v':
         this.setState({ value: true })
@@ -261,10 +314,14 @@ class App extends Component {
         this.setState({ entityStats: true })
         break;
       case '+':
-        this.setState({ zoom: clamp(zoom + zoomStep, zoomMin, zoomMax) })
+        newZoom = clamp(zoom + zoomStep, zoomMin, zoomMax)
+        localStorage.setItem('zoom', newZoom)
+        this.setState({ zoom: newZoom })
         break;
       case '-':
-        this.setState({ zoom: clamp(zoom - zoomStep, zoomMin, zoomMax) })
+        newZoom = clamp(zoom - zoomStep, zoomMin, zoomMax)
+        localStorage.setItem('zoom', newZoom)
+        this.setState({ zoom: newZoom })
         break;
       case 'h':
         const height = window.prompt('Enter height')
@@ -292,6 +349,7 @@ class App extends Component {
       case '=':
         this.centerView()
         break;
+      default:
     }
     //e.preventDefault()
   }
@@ -308,8 +366,6 @@ class App extends Component {
       const { width, height, size, space } = grid
       const totalWidth = (size + space) * width - space
       const totalHeight = (size + space) * height - space
-      const offsetX = Math.floor((viewWidth - totalWidth) / 2)
-      const offsetY = Math.floor((viewHeight - totalHeight) / 2)
 
       // Background
       context.fillStyle = 'black' // 'hsl(100, 35%, 35%)'
@@ -386,16 +442,11 @@ class App extends Component {
       }
 
       // Enemies
-      let { image, size: sourceSize, count, success } = this.images.monsterPortraits
+      let { image, size: sourceSize } = this.images.monsterPortraits
       for (const enemy of enemies) {
         const x = enemy.x * (size + space) + size / 2
         const y = enemy.y * (size + space) + size / 2
 
-        //context.beginPath()
-        //context.arc(x, y, size / 2, 0, 2 * Math.PI)
-        //context.closePath()
-        //context.fillStyle = 'black'
-        //context.fill()
         drawImagePart(context, image, sourceSize, 0, 0,
           { targetX: viewX + zoom * (x - size / 2), targetY: viewY + zoom * (y - size / 2), targetSize: zoom * size, circle: true })
         //context.drawImage(image, 0, 0, sourceSize, sourceSize, x - size / 2, y - size / 2, size, size)
@@ -414,12 +465,12 @@ class App extends Component {
         }
       }
 
-      // Client pointers
       if (clients) {
         for (const id of Object.keys(clients)) {
           const { x, y, mousedown, floating } = clients[id]
           if (x && y) {
             if (floating) {
+              // Move guide
               const { x: xPos, y: yPos } = floating.entity
               const yMin = clamp(yPos - 6, 0, height)
               const yMax = clamp(yPos + 6, 0, height)
@@ -435,6 +486,8 @@ class App extends Component {
               context.fillStyle = 'hsla(48, 50%, 50%, 0.25)'
               context.fill()
               const { offsetX, offsetY } = floating
+
+              // Shadow
               context.beginPath()
               context.arc(viewX + zoom * (x + offsetX), viewY + zoom * (y + offsetY), zoom * size / 2, 0, 2 * Math.PI)
               context.closePath()
@@ -442,14 +495,17 @@ class App extends Component {
               context.fill()
             }
 
-            context.beginPath()
-            context.fillStyle = mousedown ? 'yellow' : '#fc0'
-            context.moveTo(viewX + zoom * x, viewY + zoom * y)
-            context.lineTo(viewX + zoom * x, viewY + zoom * (y + 17))
-            context.lineTo(viewX + zoom * (x + 12), viewY + zoom * (y + 12))
-            context.lineTo(viewX + zoom * x, viewY + zoom * y)
-            context.fill()
-            context.closePath()
+            // Client pointers
+            if (id !== this.id) {
+              context.beginPath()
+              context.fillStyle = mousedown ? 'yellow' : '#fc0'
+              context.moveTo(viewX + zoom * x, viewY + zoom * y)
+              context.lineTo(viewX + zoom * x, viewY + zoom * (y + 17))
+              context.lineTo(viewX + zoom * (x + 12), viewY + zoom * (y + 12))
+              context.lineTo(viewX + zoom * x, viewY + zoom * y)
+              context.fill()
+              context.closePath()
+            }
           }
         }
       }
@@ -468,19 +524,23 @@ class App extends Component {
 
   drawEntityStats () {
     if (!this.gallery || !this.galleryCanvases) return
-    const { image, size, count, success } = this.images.playerPortraits
+    const { image, size, count } = this.images.playerPortraits
     const imagesPerRow = 3
     const space = 20
     const imageSize = (this.gallery.offsetWidth - 20 - (imagesPerRow - 1) * space) / imagesPerRow
 
+    const { entity, player, enemy } = this.state
+    const selected = entity === Player ? player : enemy
     for (let i = 0; i < count; i++) {
       const canvas = this.galleryCanvases[i]
       canvas.width = imageSize
       canvas.height = imageSize
       const context = canvas.getContext('2d')
       drawImagePart(context, image, size, i, 0, { targetSize: imageSize, circle: true })
-      context.fillStyle = 'hsla(48, 100%, 50%, 0.5)'
-      drawCheck(context, imageSize, imageSize / 5)
+      if (selected.portrait === i) {
+        context.fillStyle = 'hsla(48, 100%, 50%, 0.5)'
+        drawCheck(context, imageSize, imageSize / 5)
+      }
     }
   }
 
@@ -502,7 +562,10 @@ class App extends Component {
     window.addEventListener('keydown', this.handleKeyDown)
     socket.on('update', this.handleUpdate)
     socket.on('init', this.handleInit)
+    socket.on('id-assign', data => { this.id = data.id })
     socket.emit('init')
+    //document.addEventListener('animationstart', () => {console.log('animation started')})
+    //document.addEventListener('animationend', () => {console.log('animation ended')})
   }
 
   componentWillUnmount () {
@@ -540,9 +603,9 @@ class App extends Component {
       valueText,
       action,
       entityStats,
-      //clients,
-      //viewX,
-      //viewY
+      entity,
+      player,
+      enemy
     } = this.state
     //const ids = clients ? Object.keys(clients) : []
     this.galleryCanvases = []
@@ -570,22 +633,36 @@ class App extends Component {
       </div>
     )
 
+    const selected = entity === Player ? player : enemy
     const EntityStatsDialog = entityStats && (
       <div className='prompt'>
         <div className='row'>
-          <label>Name<input type='text'/></label>
-          <label>HP<input defaultValue={10} type='text'/></label>
+          <button className={entity === Player ? 'active' : ''}
+            onClick={() => { this.setState({ entity: Player }) }}>Player</button>
+          <button className={entity === Enemy ? 'active' : ''}
+            onClick={() => { this.setState({ entity: Enemy }) }}>Enemy</button>
         </div>
         <div className='row'>
-          <label>Speed<input defaultValue={30} type='text'/></label>
-          <label>Size<input defaultValue={1} type='text'/></label>
+          <label>Name<input type='text' value={selected.name} /></label>
+          <label>HP<input type='text' value={selected.hp} /></label>
+        </div>
+        <div className='row'>
+          <label>Speed<input type='text' value={selected.speed} /></label>
+          <label>Size<input type='text' value={selected.size} /></label>
         </div>
         <div ref={gallery => { this.gallery = gallery }} className='gallery'>
           {Object.keys(this.images).length > 0 && this.images.playerPortraits && (
             [...Array(this.images.playerPortraits.count).keys()]
-              .map(x => <canvas key={x} ref={c => { this.galleryCanvases[x] = c }}></canvas>)
+              .map(x => (
+                <canvas key={x} ref={c => { this.galleryCanvases[x] = c }}
+                  onClick={() => {
+                    this.setState({
+                      player: Object.assign({}, player, { portrait: x })
+                    })}}></canvas>
+              ))
           )}
         </div>
+        <button onClick={() => { this.setState({ entityStats: false }) }}>Close</button>
       </div>
     )
 
@@ -594,16 +671,19 @@ class App extends Component {
     //    <polygon points='0,0 0,17 12,12 0,0' />
     //  </svg>)
 
+    //const cursorStyle = {
+    //  animationTimingFunction: 'linear',
+    //  animationDuration: '25ms',
+    //  animationFillMode: 'forwards'
+    //}
+
     return (
       <div className='app'>
         <canvas className='board-canvas' ref={canvas => { this.canvas = canvas }}></canvas>
         {CommandPrompt}
         {ValuePrompt}
         {EntityStatsDialog}
-        {/*ids.map(id => (<Cursor key={id} style={{
-          left: `${viewX + clients[id].x}px`,
-          top: `${viewY + clients[id].y}px`
-        }} />))*/}
+        {/*ids.map(id => (<Cursor key={id} style={Object.assign(cursorStyle, { animationName: `animation-${id}` })} />))*/}
       </div>
     )
   }

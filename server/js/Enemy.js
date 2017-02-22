@@ -1,7 +1,7 @@
 import Entity from './Entity'
 
 export default class Enemy extends Entity {
-  constructor ({ x, y, hp }) {
-    super({ x, y, hp })
+  constructor ({ name, portrait, hp, speed, size, damage, x, y }) {
+    super({ name, portrait, hp, speed, size, damage, x, y })
   }
 }
