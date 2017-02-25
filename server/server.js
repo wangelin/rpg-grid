@@ -2,6 +2,7 @@ const io = require('socket.io')()
 
 import Player from '../src/js/Player'
 import Enemy from '../src/js/Enemy'
+import { uniqueId } from 'lodash'
 
 const clients = {}
 
@@ -11,6 +12,23 @@ const grid = {
   space: 0,
   width: 16,
   height: 9,
+  layers: [
+    {
+      tileSet: 'dungeon',
+      tileData: [
+    //      1              2          3          4           5           6           7           8             9           10          11             12         13         14         15          16
+    /* 1 */ [0, 13, 0, 1], [0, 5, 1], [0, 4, 0], [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 5, 0, 2], [0, 14, 0], [0, 14, 0], [0, 13, 0, 1], [0, 5, 1], [0, 5, 1], [0, 5, 1], [0, 5, 1],  [0, 5, 1],
+    /* 2 */ [0, 4, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 4, 1],    [0, 5, 1],  [0, 5, 1],  [0, 4, 0],     [1, 2, 3], [1, 3, 1], [1, 3, 1], [1, 2, 1],  [0, 0, 0],
+    /* 3 */ [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],    [0, 0, 0],  [0, 0, 0],  [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],
+    /* 4 */ [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 4, 2],  [0, 4, 3],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],    [0, 0, 0],  [0, 0, 0],  [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],
+    /* 5 */ [0, 0, 0],     [0, 0, 0], [0, 4, 2], [0, 11, 1], [0, 4, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],    [0, 0, 0],  [0, 0, 0],  [0, 0, 0],     [1, 2, 3], [1, 3, 1], [1, 3, 1], [1, 2, 1],  [0, 0, 0],
+    /* 6 */ [0, 0, 0],     [0, 0, 0], [0, 4, 1], [0, 4, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],    [0, 0, 0],  [0, 0, 0],  [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],
+    /* 7 */ [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 1, 0],    [0, 0, 0],  [0, 0, 0],  [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],
+    /* 8 */ [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],    [0, 0, 0],  [0, 0, 0],  [0, 0, 0],     [0, 0, 0], [0, 1, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],
+    /* 9 */ [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],  [0, 0, 0],    [0, 0, 0],  [0, 0, 0],  [0, 0, 0],     [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],  [0, 0, 0],
+      ]
+    }
+  ],
   tileSet: 'dungeon_gray_001.png',
   tileSize: 256,
   tileData: [
@@ -75,6 +93,23 @@ const damage = data => {
   const entity = getEntity(x, y)
   if (!entity) return
   entity.damage += damage
+  if (entity instanceof Player) io.emit('update', { players })
+  if (entity instanceof Enemy) io.emit('update', { enemies })
+}
+
+const deleteEntity = data => {
+  const x = getXPosition(data.x)
+  const y = getYPosition(data.y)
+  const entity = getEntity(x, y)
+  if (!entity) return
+  if (entity instanceof Player) {
+    const index = players.findIndex(player => player.id === entity.id)
+    return players.splice(index, 1)[0]
+  }
+  if (entity instanceof Enemy) {
+    const index = enemies.findIndex(enemy => enemy.id === entity.id)
+    return enemies.splice(index, 1)[0]
+  }
 }
 
 const cure = data => {
@@ -85,16 +120,17 @@ const cure = data => {
   const entity = getEntity(x, y)
   if (!entity) return
   entity.damage -= cure
+  if (entity instanceof Player) io.emit('update', { players })
+  if (entity instanceof Enemy) io.emit('update', { enemies })
 }
 
 const addEntity = (className, data) => {
   const x = getXPosition(data.x)
   const y = getYPosition(data.y)
   if (x === -1 || y === -1) return
-  const { hp = 10 } = data
   if (isEmpty(x, y)) {
-    if (className === Enemy) enemies.push(new className({ x, y, hp }))
-    if (className === Player) players.push(new className({ x, y, hp }))
+    if (className === Enemy) enemies.push(new Enemy({ x, y, id: uniqueId(), ...data.enemy }))
+    if (className === Player) players.push(new Player({ x, y, id: uniqueId(), ...data.player }))
     return true
   }
   return false
@@ -180,9 +216,14 @@ io.on('connection', client => {
     if (addEntity(Enemy, data)) io.emit('update', { enemies })
   })
 
-  client.on('damage', damage)
+  client.on('delete', data => {
+    const entity = deleteEntity(data)
+    if (entity instanceof Player) io.emit('update', { players })
+    if (entity instanceof Enemy) io.emit('update', { enemies })
+  })
 
   client.on('cure', cure)
+  client.on('damage', damage)
 
   client.on('disconnect', () => {
     delete clients[client.id]

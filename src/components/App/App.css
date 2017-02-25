@@ -35,12 +35,28 @@ svg.cursor polygon {
 
 .prompt {
   background: rgba(0, 0, 0, 0.5);
+  color: hsl(48, 100%, 50%);
   position: absolute;
-  top: 50%;
+  display: flex;
+  flex-direction: column;
+  top: 100px;
   left: 50%;
   padding: 20px;
   width: 25vw;
+  transform: translate(-50%, 0);
+}
+
+.centered {
+  top: 50%;
   transform: translate(-50%, -50%);
+}
+
+.wide {
+  width: 85vw;
+}
+
+.high {
+  height: 85vh;
 }
 
 .prompt input {
@@ -73,6 +89,12 @@ svg.cursor polygon {
   overflow-x: hidden;
 }
 
+.high .gallery {
+  max-height: unset;
+  flex-grow: 1;
+}
+
+
 .prompt .gallery > canvas {
   margin-bottom: 20px;
 }
@@ -88,11 +110,12 @@ svg.cursor polygon {
 }
 
 .prompt button.active {
-  background-color: hsl(18, 100%, 40%);
+  background-color: hsl(18, 100%, 50%);
 }
 
 .prompt button:hover {
-  background-color: hsl(18, 100%, 50%);
+  background-color: hsl(18, 100%, 0%);
+  color: white;
 }
 
 .prompt label {

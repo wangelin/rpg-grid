@@ -7,8 +7,9 @@ import { throttle } from 'lodash'
 import Player from '../../js/Player'
 import Enemy from '../../js/Enemy'
 
+import imageData from '../../js/image-data'
 import playerPortraits from '../../../public/assets/portraits/player_portraits_001.png'
-import monsterPortraits from '../../../public/assets/portraits/monster_portraits_001.png'
+import monsterPortraits from '../../../public/assets/portraits/monster_portraits_3x3_001.png'
 
 const zoomStep = 0.25
 const zoomMin = 0.25
@@ -92,24 +93,24 @@ class App extends Component {
       value: false,
       valueText: '',
       entityStats: false,
-      entity: Player,
+      entity: 'player',
       player: new Player({
         name: 'Super Macho Man',
-        portrait: undefined,
+        portrait: 0,
         hp: 10,
         speed: 30,
         size: 1
       }),
       enemy: new Enemy({
         name: 'Targus Fenix',
-        portrait: undefined,
+        portrait: 0,
         hp: 20,
         speed: 30,
         size: 2
       }),
       imagesLoaded: false,
       action: '',
-      animations: null
+      gridDesigner: false
     }
 
     this.images = {}
@@ -127,6 +128,7 @@ class App extends Component {
     this.centerView = this.centerView.bind(this)
     this.draw = this.draw.bind(this)
     this.drawEntityStats = this.drawEntityStats.bind(this)
+    this.changeEntity = this.changeEntity.bind(this)
   }
 
   gridInnerWidth = () => { const { width, size, space } = this.state.grid ; return width * (size + space) - space }
@@ -227,11 +229,14 @@ class App extends Component {
 
   handleMouseDown (e) {
     if (e.button === 0) {
-      const { viewX, viewY, zoom, action, valueText: value } = this.state
+      const { viewX, viewY, zoom, action, valueText: value, player, enemy } = this.state
       const x = (e.pageX - viewX) / zoom
       const y = (e.pageY - viewY) / zoom
       if (action) {
-        socket.emit(action, { x, y, value })
+        socket.emit(action, Object.assign({ x, y, value },
+          action === 'add-player' && { player },
+          action === 'add-enemy' && { enemy }
+        ))
       } else {
         socket.emit('mousedown', { x, y })
       }
@@ -274,9 +279,9 @@ class App extends Component {
   }
 
   handleKeyDown (e) {
-    const { action, prompt, promptText, value, entityStats, zoom } = this.state
+    const { action, prompt, promptText, value, entityStats, zoom, gridDesigner } = this.state
 
-    if (prompt || value || entityStats) {
+    if (prompt || value || entityStats || gridDesigner) {
       switch (e.keyCode) {
         case 13:
           if (prompt) {
@@ -288,7 +293,7 @@ class App extends Component {
           }
           break;
         case 27:
-          this.setState({ prompt: false, value: false, entityStats: false })
+          this.setState({ prompt: false, value: false, entityStats: false, gridDesigner: false })
           break;
         default:
       }
@@ -305,50 +310,53 @@ class App extends Component {
       case 'p':
         this.setState({ prompt: true })
         e.preventDefault()
-        break;
+        break
       case 'v':
         this.setState({ value: true })
         e.preventDefault()
-        break;
+        break
       case 's':
         this.setState({ entityStats: true })
-        break;
+        break
+      case 'g':
+        this.setState({ gridDesigner: true })
+        break
       case '+':
         newZoom = clamp(zoom + zoomStep, zoomMin, zoomMax)
         localStorage.setItem('zoom', newZoom)
         this.setState({ zoom: newZoom })
-        break;
+        break
       case '-':
         newZoom = clamp(zoom - zoomStep, zoomMin, zoomMax)
         localStorage.setItem('zoom', newZoom)
         this.setState({ zoom: newZoom })
-        break;
+        break
       case 'h':
         const height = window.prompt('Enter height')
         socket.emit('data', { height })
         e.preventDefault()
-        break;
+        break
       case 'w':
         const width = window.prompt('Enter width')
         socket.emit('data', { width })
         e.preventDefault()
-        break;
+        break
       case 'd':
         newAction = 'damage'
         this.setState({ action: action === newAction ? '' : newAction })
         e.preventDefault()
-        break;
+        break
       case 'c':
         newAction = 'add-player'
         this.setState({ action: action === newAction ? '' : newAction })
-        break;
+        break
       case 'e':
         newAction = 'add-enemy'
         this.setState({ action: action === newAction ? '' : newAction })
-        break;
+        break
       case '=':
         this.centerView()
-        break;
+        break
       default:
     }
     //e.preventDefault()
@@ -401,16 +409,25 @@ class App extends Component {
       //context.fill()
 
       // Players
+      let image
+      let sourceSize
+      image = this.images.playerPortraits.image
+      sourceSize = this.images.playerPortraits.size
       for (const player of players) {
         const x = player.x * (size + space) + size / 2
         const y = player.y * (size + space) + size / 2
 
         const fraction = clamp(player.damage || 0, 0, player.hp) / 10
-        context.beginPath()
-        context.arc(viewX + zoom * x, viewY + zoom * y, zoom * size / 2, 0, 2 * Math.PI)
-        context.closePath()
-        context.fillStyle = fraction === 1 ? 'rgba(96, 0, 0, 1)' : 'hsl(0, 0%, 75%)'
-        context.fill()
+        if (typeof player.portrait !== 'undefined') {
+          drawImagePart(context, image, sourceSize, player.portrait, 0,
+            { targetX: viewX + zoom * (x - size / 2), targetY: viewY + zoom * (y - size / 2), targetSize: zoom * size, circle: true })
+        } else {
+          context.beginPath()
+          context.arc(viewX + zoom * x, viewY + zoom * y, zoom * size / 2, 0, 2 * Math.PI)
+          context.closePath()
+          context.fillStyle = fraction === 1 ? 'rgba(96, 0, 0, 1)' : 'hsl(0, 0%, 75%)'
+          context.fill()
+        }
         context.fillStyle = 'rgba(128, 0, 0, 1)'
         if (player.damage) {
           const a = Math.acos(1 - 2 * fraction)
@@ -442,7 +459,8 @@ class App extends Component {
       }
 
       // Enemies
-      let { image, size: sourceSize } = this.images.monsterPortraits
+      image = this.images.monsterPortraits.image
+      sourceSize = this.images.monsterPortraits.size
       for (const enemy of enemies) {
         const x = enemy.x * (size + space) + size / 2
         const y = enemy.y * (size + space) + size / 2
@@ -522,20 +540,28 @@ class App extends Component {
     if (entityStats) this.drawEntityStats()
   }
 
+  changeEntity (type, data) {
+    this.setState({ [type]: Object.assign({}, this.state[type], data) })
+  }
+
   drawEntityStats () {
     if (!this.gallery || !this.galleryCanvases) return
-    const { image, size, count } = this.images.playerPortraits
+    const { entity, player, enemy } = this.state
+    const { image, size, count } = entity === 'player'
+      ? this.images.playerPortraits
+      : this.images.monsterPortraits
     const imagesPerRow = 3
     const space = 20
     const imageSize = (this.gallery.offsetWidth - 20 - (imagesPerRow - 1) * space) / imagesPerRow
 
-    const { entity, player, enemy } = this.state
-    const selected = entity === Player ? player : enemy
+    const selected = entity === 'player' ? player : enemy
+    console.log(selected)
     for (let i = 0; i < count; i++) {
       const canvas = this.galleryCanvases[i]
       canvas.width = imageSize
       canvas.height = imageSize
       const context = canvas.getContext('2d')
+      context.clearRect(0, 0, imageSize, imageSize)
       drawImagePart(context, image, size, i, 0, { targetSize: imageSize, circle: true })
       if (selected.portrait === i) {
         context.fillStyle = 'hsla(48, 100%, 50%, 0.5)'
@@ -605,13 +631,14 @@ class App extends Component {
       entityStats,
       entity,
       player,
-      enemy
+      enemy,
+      gridDesigner
     } = this.state
     //const ids = clients ? Object.keys(clients) : []
     this.galleryCanvases = []
 
     const CommandPrompt = prompt && (
-      <div className='prompt'>
+      <div className='prompt centered'>
         <input type='text' placeholder='Type a command (h for help)' autoFocus={true}
           className={commands.indexOf(promptText) !== -1 ? 'ok' : ''}
           onChange={this.handlePrompt}
@@ -626,43 +653,74 @@ class App extends Component {
     )
 
     const ValuePrompt = value && (
-      <div className='prompt'>
+      <div className='prompt centered'>
         <input type='text' placeholder={`Enter value${action ? ` for ${action}` : ''}`} autoFocus={true}
           onChange={this.handleValue}
           value={valueText} />
       </div>
     )
 
-    const selected = entity === Player ? player : enemy
+    const selected = entity === 'player' ? player : enemy
     const EntityStatsDialog = entityStats && (
       <div className='prompt'>
         <div className='row'>
-          <button className={entity === Player ? 'active' : ''}
-            onClick={() => { this.setState({ entity: Player }) }}>Player</button>
-          <button className={entity === Enemy ? 'active' : ''}
-            onClick={() => { this.setState({ entity: Enemy }) }}>Enemy</button>
+          <button className={entity === 'player' ? 'active' : ''}
+            onClick={() => { this.setState({ entity: 'player' }) }}>Player</button>
+          <button className={entity === 'enemy' ? 'active' : ''}
+            onClick={() => { this.setState({ entity: 'enemy' }) }}>Enemy</button>
         </div>
         <div className='row'>
-          <label>Name<input type='text' value={selected.name} /></label>
-          <label>HP<input type='text' value={selected.hp} /></label>
+          <label>Name<input type='text' value={selected.name}
+            onChange={(e) => { this.changeEntity(entity, { name: e.target.value }) }} /></label>
+          <label>HP<input type='text' value={selected.hp}
+            onChange={(e) => { this.changeEntity(entity, { hp: e.target.value }) }} /></label>
         </div>
         <div className='row'>
-          <label>Speed<input type='text' value={selected.speed} /></label>
-          <label>Size<input type='text' value={selected.size} /></label>
+          <label>Speed<input type='text' value={selected.speed}
+            onChange={(e) => { this.changeEntity(entity, { speed: e.target.value }) }} /></label>
+          <label>Size<input type='text' value={selected.size}
+            onChange={(e) => { this.changeEntity(entity, { size: e.target.value }) }} /></label>
         </div>
         <div ref={gallery => { this.gallery = gallery }} className='gallery'>
           {Object.keys(this.images).length > 0 && this.images.playerPortraits && (
-            [...Array(this.images.playerPortraits.count).keys()]
+            [...Array(entity === 'player'
+              ? this.images.playerPortraits.count
+              : this.images.monsterPortraits.count).keys()]
               .map(x => (
                 <canvas key={x} ref={c => { this.galleryCanvases[x] = c }}
                   onClick={() => {
                     this.setState({
-                      player: Object.assign({}, player, { portrait: x })
+                      [entity]: Object.assign({}, selected, { portrait: x })
                     })}}></canvas>
               ))
           )}
         </div>
         <button onClick={() => { this.setState({ entityStats: false }) }}>Close</button>
+      </div>
+    )
+
+    const GridDesignerDialog = gridDesigner && (
+      <div className='prompt wide high'>
+        <div className='row'>
+          <button>Dungeon</button>
+          <button>Outdoors</button>
+          <button>City</button>
+          <button>Castle</button>
+        </div>
+        <div className='row'>
+          <h1>Chosen tile</h1>
+          <canvas></canvas>
+        </div>
+        <div ref={gallery => { this.gallery = gallery }} className='gallery'>
+          {Object.keys(this.images).length > 0 && this.images.playerPortraits && (
+            [...Array(this.images.tileSet.count).keys()]
+              .map(x => (
+                <canvas key={x} ref={c => { this.tileCanvas[x] = c }}
+                  onClick={() => {}}></canvas>
+              ))
+          )}
+        </div>
+        <button onClick={() => { this.setState({ gridDesigner: false }) }}>Close</button>
       </div>
     )
 
@@ -683,6 +741,7 @@ class App extends Component {
         {CommandPrompt}
         {ValuePrompt}
         {EntityStatsDialog}
+        {GridDesignerDialog}
         {/*ids.map(id => (<Cursor key={id} style={Object.assign(cursorStyle, { animationName: `animation-${id}` })} />))*/}
       </div>
     )
