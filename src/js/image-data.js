@@ -18,23 +18,23 @@ export default [
   },
   {
     name: 'monster',
-    location: 'portraits/monster_portraits_1x1_001',
+    location: 'portraits/monster_portraits_1x1_001.png',
     size: 1,
     tileSize: 256,
     cols: 1,
     rows: 1
   },
   {
-    name: 'monsters',
-    location: 'portraits/monster_portraits_2x2_001',
+    name: 'monster',
+    location: 'portraits/monster_portraits_2x2_001.png',
     size: 2,
     tileSize: 512,
     cols: 1,
     rows: 1
   },
   {
-    name: 'monsters',
-    location: 'portraits/monster_portraits_3x3_001',
+    name: 'monster',
+    location: 'portraits/monster_portraits_3x3_001.png',
     size: 3,
     tileSize: 768,
     cols: 1,

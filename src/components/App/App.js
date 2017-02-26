@@ -6,10 +6,7 @@ import { throttle } from 'lodash'
 
 import Player from '../../js/Player'
 import Enemy from '../../js/Enemy'
-
 import imageData from '../../js/image-data'
-import playerPortraits from '../../../public/assets/portraits/player_portraits_001.png'
-import monsterPortraits from '../../../public/assets/portraits/monster_portraits_3x3_001.png'
 
 const zoomStep = 0.25
 const zoomMin = 0.25
@@ -47,8 +44,8 @@ const drawImagePart =  (context, image, size = 256, col = 0, row = 0,
   context.drawImage(memoryCanvas, targetX, targetY)
 }
 
-const drawTile =  (context, tileSetImage, tileSize = 256, tile = [0, 0, 0, 0, 0],
-  { targetX = 0, targetY = 0, targetSize = tileSize } = {}) => {
+const drawTile =  (context, tileSetImage, tileSize, tile,
+  { targetX, targetY, targetSize = tileSize } = {}) => {
   tileCanvas.width = targetSize
   tileCanvas.height = targetSize
   tileContext.translate(targetSize / 2, targetSize / 2)
@@ -138,15 +135,15 @@ class App extends Component {
 
   async loadImages (images) {
     const imagesPromises = []
-    for (const imageInfo of
-      [
-        ...images,
-        { name: 'playerPortraits', count: 4, size: 256, src: playerPortraits },
-        { name: 'monsterPortraits', count: 2, size: 768, src: monsterPortraits }
-      ]) {
+    for (const imageInfo of images) {
       imagesPromises.push(new Promise((resolve, reject) => {
         const image = new Image()
-        image.src = imageInfo.src
+        try {
+          image.src = require(`../../../public/assets/${imageInfo.location}`)
+        } catch (e) {
+          console.log(`Cannot load image at /public/assets/${imageInfo.location}`)
+          resolve({ imageInfo, image, success: false })
+        }
         image.addEventListener('load', () => { resolve({ imageInfo, image, success: true }) })
         image.addEventListener('error', () => { resolve({ imageInfo, image, success: false }) })
       }))
@@ -199,14 +196,17 @@ class App extends Component {
 
   handleInit (data) {
     const { clients, grid, players, enemies } = data
-    this.loadImages([{ name: 'tileSet', src: require(`../../../public/assets/tilesets/${grid.tileSet}`)}]).then(images => {
+    this.loadImages(imageData).then(images => {
       this.images = images.reduce((obj, current) => {
         const { image, imageInfo, success } = current
         obj[imageInfo.name] = {
           image,
-          src: imageInfo.src,
+          name: imageInfo.name,
+          location: imageInfo.location,
           size: imageInfo.size,
-          count: imageInfo.count,
+          tileSize: imageInfo.tileSize,
+          rows: imageInfo.rows,
+          cols: imageInfo.cols,
           success
         }
         return obj
@@ -216,6 +216,9 @@ class App extends Component {
         this.centerView()
         this.draw()
       })
+    })
+    .catch(err => {
+      console.log('err', err)
     })
   }
 
@@ -394,12 +397,17 @@ class App extends Component {
           y = r * (size + space)
           if (viewX + zoom * (x + size + space) > 0 && viewY + zoom * (y + size + space) > 0) {
             //context.fillRect(viewX + zoom * x, viewY + zoom * y, zoom * size, zoom * size)
-            const tile = grid.tileData[r * grid.width + c]
-            drawTile(context, this.images.tileSet.image, grid.tileSize, tile, {
-              targetX: viewX + zoom * x,
-              targetY: viewY + zoom * y,
-              targetSize: zoom * grid.size
-            })
+            for (const layer of grid.layers) {
+              const { tileSet, tileData } = layer
+              const tile = tileData[r * grid.width + c]
+              if (tile) {
+                drawTile(context, this.images[tileSet].image, this.images[tileSet].tileSize, tile, {
+                  targetX: viewX + zoom * x,
+                  targetY: viewY + zoom * y,
+                  targetSize: zoom * grid.size
+                })
+              }
+            }
           }
           if (viewY + zoom * (y + size + space) > viewHeight) break
         }
@@ -409,18 +417,14 @@ class App extends Component {
       //context.fill()
 
       // Players
-      let image
-      let sourceSize
-      image = this.images.playerPortraits.image
-      sourceSize = this.images.playerPortraits.size
       for (const player of players) {
         const x = player.x * (size + space) + size / 2
         const y = player.y * (size + space) + size / 2
 
         const fraction = clamp(player.damage || 0, 0, player.hp) / 10
         if (typeof player.portrait !== 'undefined') {
-          drawImagePart(context, image, sourceSize, player.portrait, 0,
-            { targetX: viewX + zoom * (x - size / 2), targetY: viewY + zoom * (y - size / 2), targetSize: zoom * size, circle: true })
+          drawImagePart(context, this.images.player.image, this.images.player.tileSize, player.portrait, 0,
+            { targetX: viewX + zoom * (x - size / 2), targetY: viewY + zoom * (y - size / 2), targetSize: zoom * player.size * size, circle: true })
         } else {
           context.beginPath()
           context.arc(viewX + zoom * x, viewY + zoom * y, zoom * size / 2, 0, 2 * Math.PI)
@@ -459,13 +463,11 @@ class App extends Component {
       }
 
       // Enemies
-      image = this.images.monsterPortraits.image
-      sourceSize = this.images.monsterPortraits.size
       for (const enemy of enemies) {
         const x = enemy.x * (size + space) + size / 2
         const y = enemy.y * (size + space) + size / 2
 
-        drawImagePart(context, image, sourceSize, 0, 0,
+        drawImagePart(context, this.images.monster.image, this.images.monster.tileSize, 0, 0,
           { targetX: viewX + zoom * (x - size / 2), targetY: viewY + zoom * (y - size / 2), targetSize: zoom * size, circle: true })
         //context.drawImage(image, 0, 0, sourceSize, sourceSize, x - size / 2, y - size / 2, size, size)
         if (enemy.damage >= enemy.hp) {
@@ -489,11 +491,12 @@ class App extends Component {
           if (x && y) {
             if (floating) {
               // Move guide
-              const { x: xPos, y: yPos } = floating.entity
-              const yMin = clamp(yPos - 6, 0, height)
-              const yMax = clamp(yPos + 6, 0, height)
-              const xMin = clamp(xPos - 6, 0, width)
-              const xMax = clamp(xPos + 6, 0, width)
+              const { x: xPos, y: yPos, speed, size: entitySize } = floating.entity
+              const steps = Math.floor(speed / 5)
+              const yMin = clamp(yPos - steps, 0, height)
+              const yMax = clamp(yPos + entitySize + steps, 0, height)
+              const xMin = clamp(xPos - steps, 0, width)
+              const xMax = clamp(xPos + entitySize + steps, 0, width)
               context.beginPath()
               for (let r = yMin; r < yMax; r++) {
                 for (let c = xMin; c < xMax; c++) {
@@ -507,7 +510,7 @@ class App extends Component {
 
               // Shadow
               context.beginPath()
-              context.arc(viewX + zoom * (x + offsetX), viewY + zoom * (y + offsetY), zoom * size / 2, 0, 2 * Math.PI)
+              context.arc(viewX + zoom * (x + offsetX), viewY + zoom * (y + offsetY), zoom * entitySize * size / 2, 0, 2 * Math.PI)
               context.closePath()
               context.fillStyle = 'rgba(0, 0, 0, 0.2)'
               context.fill()
@@ -547,22 +550,23 @@ class App extends Component {
   drawEntityStats () {
     if (!this.gallery || !this.galleryCanvases) return
     const { entity, player, enemy } = this.state
-    const { image, size, count } = entity === 'player'
-      ? this.images.playerPortraits
-      : this.images.monsterPortraits
+    const { image, tileSize, cols, rows } = entity === 'player'
+      ? this.images.player
+      : this.images.monster
+    const count = rows * cols
     const imagesPerRow = 3
     const space = 20
     const imageSize = (this.gallery.offsetWidth - 20 - (imagesPerRow - 1) * space) / imagesPerRow
 
     const selected = entity === 'player' ? player : enemy
-    console.log(selected)
+
     for (let i = 0; i < count; i++) {
       const canvas = this.galleryCanvases[i]
       canvas.width = imageSize
       canvas.height = imageSize
       const context = canvas.getContext('2d')
       context.clearRect(0, 0, imageSize, imageSize)
-      drawImagePart(context, image, size, i, 0, { targetSize: imageSize, circle: true })
+      drawImagePart(context, image, tileSize, i, 0, { targetSize: imageSize, circle: true })
       if (selected.portrait === i) {
         context.fillStyle = 'hsla(48, 100%, 50%, 0.5)'
         drawCheck(context, imageSize, imageSize / 5)
@@ -673,19 +677,19 @@ class App extends Component {
           <label>Name<input type='text' value={selected.name}
             onChange={(e) => { this.changeEntity(entity, { name: e.target.value }) }} /></label>
           <label>HP<input type='text' value={selected.hp}
-            onChange={(e) => { this.changeEntity(entity, { hp: e.target.value }) }} /></label>
+            onChange={(e) => { this.changeEntity(entity, { hp: parseInt(e.target.value, 10) }) }} /></label>
         </div>
         <div className='row'>
           <label>Speed<input type='text' value={selected.speed}
-            onChange={(e) => { this.changeEntity(entity, { speed: e.target.value }) }} /></label>
+            onChange={(e) => { this.changeEntity(entity, { speed: parseInt(e.target.value, 10) }) }} /></label>
           <label>Size<input type='text' value={selected.size}
-            onChange={(e) => { this.changeEntity(entity, { size: e.target.value }) }} /></label>
+            onChange={(e) => { this.changeEntity(entity, { size: parseInt(e.target.value, 10) }) }} /></label>
         </div>
         <div ref={gallery => { this.gallery = gallery }} className='gallery'>
-          {Object.keys(this.images).length > 0 && this.images.playerPortraits && (
+          {Object.keys(this.images).length > 0 && this.images.player && (
             [...Array(entity === 'player'
-              ? this.images.playerPortraits.count
-              : this.images.monsterPortraits.count).keys()]
+              ? this.images.player.rows * this.images.player.cols
+              : this.images.monster.rows * this.images.monster.cols).keys()]
               .map(x => (
                 <canvas key={x} ref={c => { this.galleryCanvases[x] = c }}
                   onClick={() => {
@@ -712,7 +716,7 @@ class App extends Component {
           <canvas></canvas>
         </div>
         <div ref={gallery => { this.gallery = gallery }} className='gallery'>
-          {Object.keys(this.images).length > 0 && this.images.playerPortraits && (
+          {Object.keys(this.images).length > 0 && this.images.player && (
             [...Array(this.images.tileSet.count).keys()]
               .map(x => (
                 <canvas key={x} ref={c => { this.tileCanvas[x] = c }}
