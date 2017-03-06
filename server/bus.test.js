@@ -35,7 +35,7 @@ it('dispatches published events', () => {
 })
 
 it('can remove clients', () => {
-  var board = new BoardStream(console.log, 'board')
+  var board = new BoardStream(() => {}, 'board')
 
   var clientAddedReceived = false
   var objectAddedReceived = false
